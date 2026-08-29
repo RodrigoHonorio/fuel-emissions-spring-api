@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.P.I.R.E. - Dashboard Integrado</title>
+    <title>S.P.I.R.E. - Unified Environmental GIS Dashboard</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Leaflet CSS -->
@@ -11,125 +11,215 @@
 </head>
 <body class="bg-light">
 
-<div class="container mt-5">
+<div class="container-fluid px-4 mt-4">
+    <!-- Cabeçalho Principal do Sistema -->
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <h1 class="fw-bold text-dark mb-0">S.P.I.R.E.</h1>
+            <p class="text-muted small">Spatial Prediction & Impact Reporting Ecosystem | Unified GIS Console</p>
+        </div>
+    </div>
+
+    <!-- LAYOUT LADO A LADO (SPLIT VIEW) -->
     <div class="row">
 
-        <!-- PAINEL 1: Calculadora de Emissões -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">S.P.I.R.E. | Fuel Emission Calculator</h4>
+        <!-- COLUNA ESQUERDA: Calculadora, Relatório e TfL -->
+        <div class="col-lg-4 mb-4">
+
+            <!-- Calculadora de Emissões & Impacto -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white py-2">
+                    <h5 class="mb-0 fs-6">Fuel Emission & Spatial Impact</h5>
                 </div>
                 <div class="card-body">
                     <form id="emissionForm">
-                        <div class="mb-3">
-                            <label for="fuelType" class="form-label">Fuel Type</label>
-                            <select class="form-select" id="fuelType" required>
-                                <option value="PETROL">Petrol</option>
-                                <option value="DIESEL">Diesel</option>
-                                <option value="ETHANOL">Ethanol</option>
+                        <div class="mb-2">
+                            <label for="fuelType" class="form-label small fw-bold">Fuel Type</label>
+                            <select class="form-select form-select-sm" id="fuelType" required>
+                                <option value="Petrol">Petrol</option>
+                                <option value="Diesel">Diesel</option>
+                                <option value="Ethanol">Ethanol</option>
                             </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="fuelVolumeLitres" class="form-label">Fuel Volume (Litres)</label>
-                            <input type="number" step="any" class="form-control" id="fuelVolumeLitres" placeholder="e.g. 5000" required>
+                        <div class="mb-2">
+                            <label for="fuelVolumeLitres" class="form-label small fw-bold">Fuel Volume (Litres)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="fuelVolumeLitres" placeholder="e.g. 2000" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="ambientTemperatureCelsius" class="form-label">Ambient Temperature (°C)</label>
-                            <input type="number" step="any" class="form-control" id="ambientTemperatureCelsius" placeholder="e.g. 25" required>
+                        <div class="mb-2">
+                            <label for="ambientTemperatureCelsius" class="form-label small fw-bold">Ambient Temperature (°C)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="ambientTemperatureCelsius" placeholder="e.g. 25" required>
                         </div>
-                        <button type="submit" class="btn btn-success w-100">Calculate Emissions</button>
+
+                        <!-- Campos informativos de coordenadas selecionadas -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-muted" style="font-size: 0.75rem;">Selected Lat</label>
+                                <input type="text" id="targetLat" class="form-control form-control-sm bg-light" value="51.5074" readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-muted" style="font-size: 0.75rem;">Selected Lng</label>
+                                <input type="text" id="targetLng" class="form-control form-control-sm bg-light" value="-0.1278" readonly>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Calculate Impact & Emissions</button>
                     </form>
 
-                    <div id="resultContainer" class="mt-4 d-none">
-                        <div class="alert alert-info" role="alert">
-                            <h5 class="alert-heading">Calculation Result</h5>
-                            <p class="mb-0">Estimated VOC Emissions: <strong id="resultValue"></strong> kg</p>
+                    <div id="resultContainer" class="mt-3 d-none">
+                        <div class="alert alert-info border-0 shadow-sm py-2 px-3 mb-0" role="alert" style="border-left: 4px solid #0d6efd !important;">
+                            <h6 class="alert-heading fw-bold fs-6 mb-1">🌍 Local Impact Report</h6>
+                            <hr class="my-1">
+                            <p class="mb-1 small">Total Emissions: <strong id="resultValue">-</strong> kg</p>
+                            <p class="mb-1 small">Closest Station: <strong id="resultStation">-</strong></p>
+                            <p class="mb-0 small">Distance: <strong id="resultDistance">-</strong> km</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- PAINEL 2: Dados ao vivo de Londres -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-dark text-white">
-                    <h4 class="mb-0">🌍 Live London Air Quality (TfL)</h4>
+            <!-- Dados ao vivo de Londres (TfL) -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white py-2">
+                    <h5 class="mb-0 fs-6">🌍 Live London Air Quality (TfL)</h5>
                 </div>
-                <div class="card-body">
-                    <p id="londonSummary" class="text-muted fst-italic">Conectando aos servidores de Londres...</p>
+                <div class="card-body py-3">
+                    <p id="londonSummary" class="text-muted fst-italic small mb-2">Conectando aos servidores de Londres...</p>
 
-                    <ul class="list-group list-group-flush mt-3">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <ul class="list-group list-group-flush small">
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
                             NO2 (Nitrogen Dioxide)
                             <span id="no2Badge" class="badge rounded-pill bg-secondary">-</span>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
                             PM10 (Particulate Matter)
                             <span id="pm10Badge" class="badge rounded-pill bg-secondary">-</span>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            PM2.5 (Fine Particles - NHS Risk)
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
+                            PM2.5 (Fine Particles)
                             <span id="pm25Badge" class="badge rounded-pill bg-secondary">-</span>
                         </li>
                     </ul>
                 </div>
             </div>
+
         </div>
 
-    </div>
+        <!-- COLUNA DIREITA: Mapa Geoespacial & Controles de Calor & Filtros -->
+        <div class="col-lg-8 mb-4">
+            <div class="card bg-dark text-white shadow h-100">
+                <div class="card-header border-secondary d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
+                    <h5 class="mb-0 fs-6">🔥 S.P.I.R.E. Spatial Map & Heat Layer</h5>
 
-    <!-- PAINEL 3: Mapa Espacial (Dark Mode Dinâmico) -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="card bg-dark text-white shadow">
-                <div class="card-header border-secondary">
-                    <h5 class="mb-0">🌍 S.P.I.R.E. Live Spatial Map (London)</h5>
+                    <!-- Filtros por Poluente -->
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Pollutant Filters">
+                        <button type="button" class="btn btn-outline-light active" onclick="filterHeatmap('ALL', this)">All</button>
+                        <button type="button" class="btn btn-outline-light" onclick="filterHeatmap('NO2', this)">NO2</button>
+                        <button type="button" class="btn btn-outline-light" onclick="filterHeatmap('PM10', this)">PM10</button>
+                        <button type="button" class="btn btn-outline-light" onclick="filterHeatmap('PM2.5', this)">PM2.5</button>
+                    </div>
                 </div>
+
+                <!-- Painel de Controles do Heatmap (Sliders) -->
+                <div class="card-body bg-secondary bg-opacity-10 border-bottom border-secondary py-2">
+                    <div class="row align-items-center g-3">
+                        <div class="col-md-6">
+                            <label for="radiusRange" class="form-label small mb-0 fw-bold text-light" style="font-size: 0.8rem;">
+                                Heat Radius: <span id="radiusVal" class="text-info">45</span>px
+                            </label>
+                            <input type="range" class="form-range form-range-sm" id="radiusRange" min="15" max="80" value="45">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="blurRange" class="form-label small mb-0 fw-bold text-light" style="font-size: 0.8rem;">
+                                Heat Blur: <span id="blurVal" class="text-info">30</span>px
+                            </label>
+                            <input type="range" class="form-range form-range-sm" id="blurRange" min="10" max="50" value="30">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="card-body p-0">
-                    <div id="map" style="height: 500px; width: 100%; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;"></div>
+                    <div id="map" style="height: 680px; width: 100%; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;"></div>
                 </div>
             </div>
         </div>
-    </div>
 
+    </div>
 </div>
 
+<!-- Bootstrap 5 JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet Heat Map Plugin -->
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 
 <script>
-    // --- LÓGICA 1: Calculadora de Emissões ---
+    let activeLat = 51.5074;
+    let activeLng = -0.1278;
+    let clickMarker = null;
+    let allSpatialNodes = [];
+    let heatPoints = [];
+    let heatLayer = null;
+    let currentPollutantFilter = 'ALL';
+
+    function updateSelectedCoordinates(lat, lng, popupText = "Ponto de Impacto Selecionado") {
+        activeLat = lat;
+        activeLng = lng;
+
+        document.getElementById('targetLat').value = activeLat.toFixed(4);
+        document.getElementById('targetLng').value = activeLng.toFixed(4);
+
+        if (clickMarker) {
+            map.removeLayer(clickMarker);
+        }
+
+        clickMarker = L.marker([activeLat, activeLng], {
+            icon: L.divIcon({
+                className: 'custom-click-pin',
+                html: '<div style="background-color: #dc3545; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>',
+                iconSize: [14, 14]
+            })
+        }).addTo(map)
+          .bindPopup(`<b>${popupText}</b><br>Lat: ${activeLat.toFixed(4)}<br>Lng: ${activeLng.toFixed(4)}`).openPopup();
+    }
+
+    // --- LÓGICA 1: Calculadora de Emissões & Impacto com Heatmap Dinâmico ---
     document.getElementById('emissionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
 
-        const payload = {
-            fuelType: document.getElementById('fuelType').value,
-            fuelVolumeLitres: parseFloat(document.getElementById('fuelVolumeLitres').value),
-            ambientTemperatureCelsius: parseFloat(document.getElementById('ambientTemperatureCelsius').value)
-        };
+        const fuelType = document.getElementById('fuelType').value;
+        const volume = parseFloat(document.getElementById('fuelVolumeLitres').value);
+        const temp = parseFloat(document.getElementById('ambientTemperatureCelsius').value);
 
         try {
-            const response = await fetch('http://localhost:8080/api/emissions/calculate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const url = `http://localhost:8080/api/v1/emissions/impact?fuelType=${fuelType}&volume=${volume}&latitude=${activeLat}&longitude=${activeLng}`;
 
+            const response = await fetch(url, { method: 'POST' });
             if (!response.ok) throw new Error('Network response was not ok');
 
             const data = await response.json();
-            document.getElementById('resultValue').textContent = data.estimatedVocEmissionsKg.toFixed(2);
+
+            document.getElementById('resultValue').textContent = data.totalEmissionsKg.toFixed(2);
+            document.getElementById('resultStation').textContent = data.closestStationName;
+            document.getElementById('resultDistance').textContent = data.distanceKm.toFixed(2);
+
             document.getElementById('resultContainer').classList.remove('d-none');
 
+            // HEATMAP DINÂMICO: Adiciona ponto de alta intensidade proporcional às emissões calculadas
+            const impactIntensity = Math.min(Math.max(data.totalEmissionsKg / 400, 0.8), 2.5);
+            heatPoints.push([activeLat, activeLng, impactIntensity]);
+            renderHeatmap();
+
+            // Centraliza o mapa suavemente no ponto calculado
+            map.setView([activeLat, activeLng], 13, { animate: true });
+
         } catch (error) {
-            console.error('Error calculating emissions:', error);
-            alert('Failed to connect to the calculator backend.');
+            console.error('Error calculating spatial impact:', error);
+            alert('Failed to connect to the spatial impact backend.');
         }
     });
 
-    // --- LÓGICA 2: Captura automática dos dados de Londres ---
+    // --- LÓGICA 2: Dados ao vivo TfL ---
     window.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch('http://localhost:8080/api/v1/london/air-quality');
@@ -164,7 +254,7 @@
         }
     });
 
-    // --- LÓGICA 3: Inicialização do Mapa (Esri Dark Mode) & Plotagem Dinâmica ---
+    // --- LÓGICA 3: Inicialização do Mapa & Filtros de Poluentes ---
     const map = L.map('map').setView([51.5074, -0.1278], 11);
 
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
@@ -172,36 +262,90 @@
         maxZoom: 16
     }).addTo(map);
 
-    // Função para buscar e plotar os nós espaciais cadastrados no backend
-    async function loadSpatialNodes() {
+    function renderHeatmap() {
+        const radius = parseInt(document.getElementById('radiusRange').value);
+        const blur = parseInt(document.getElementById('blurRange').value);
+
+        document.getElementById('radiusVal').textContent = radius;
+        document.getElementById('blurVal').textContent = blur;
+
+        if (heatLayer) {
+            map.removeLayer(heatLayer);
+        }
+
+        if (heatPoints.length > 0) {
+            heatLayer = L.heatLayer(heatPoints, {
+                radius: radius,
+                blur: blur,
+                maxZoom: 17,
+                max: 1.0,
+                gradient: {
+                    0.2: 'blue',
+                    0.4: 'cyan',
+                    0.6: 'lime',
+                    0.8: 'yellow',
+                    1.0: 'red'
+                }
+            }).addTo(map);
+        }
+    }
+
+    async function loadSpatialNodesAndHeatMap() {
         try {
             const response = await fetch('http://localhost:8080/api/v1/spatial/nodes');
             if (!response.ok) throw new Error('Failed to fetch spatial nodes');
 
-            const nodes = await response.json();
+            allSpatialNodes = await response.json();
 
-            if (nodes.length === 0) {
-                // Marcador padrão caso o banco ainda esteja vazio
-                L.marker([51.5074, -0.1278]).addTo(map)
-                    .bindPopup('<b>London City Centre</b><br>Initial Spatial Node (Default).')
-                    .openPopup();
-            } else {
-                // Plota dinamicamente cada estação vinda do banco de dados espacial
-                nodes.forEach(node => {
-                    L.marker([node.latitude, node.longitude]).addTo(map)
-                        .bindPopup(`<b>${node.stationName}</b><br>Latitude: ${node.latitude.toFixed(4)}<br>Longitude: ${node.longitude.toFixed(4)}`);
+            if (allSpatialNodes.length > 0) {
+                allSpatialNodes.forEach(node => {
+                    const marker = L.marker([node.latitude, node.longitude]).addTo(map)
+                        .bindPopup(`<b>${node.stationName}</b><br>Latitude: ${node.latitude.toFixed(4)}<br>Longitude: ${node.longitude.toFixed(4)}<br><small class="text-primary fw-bold">Clique no pino para simular impacto aqui</small>`);
+
+                    marker.on('click', () => {
+                        updateSelectedCoordinates(node.latitude, node.longitude, node.stationName);
+                    });
                 });
+
+                buildHeatPointsForFilter(currentPollutantFilter);
             }
         } catch (error) {
-            console.error('Error loading spatial nodes:', error);
-            // Fallback em caso de falha na requisição
-            L.marker([51.5074, -0.1278]).addTo(map)
-                .bindPopup('<b>London City Centre</b><br>Error loading dynamic spatial nodes.');
+            console.error('Error loading spatial nodes for heatmap:', error);
         }
     }
 
-    // Executa a carga dos nós ao iniciar o mapa
-    loadSpatialNodes();
+    function buildHeatPointsForFilter(filterType) {
+        heatPoints = [];
+        allSpatialNodes.forEach((node, index) => {
+            let weight = 1.0;
+            // Simulação de variação de peso baseada no tipo de poluente selecionado
+            if (filterType === 'NO2') {
+                weight = (index % 3 === 0) ? 1.6 : 0.4;
+            } else if (filterType === 'PM10') {
+                weight = (index % 2 === 0) ? 1.3 : 0.7;
+            } else if (filterType === 'PM2.5') {
+                weight = (index % 5 === 0) ? 1.9 : 0.5;
+            }
+            heatPoints.push([node.latitude, node.longitude, weight]);
+        });
+        renderHeatmap();
+    }
+
+    function filterHeatmap(type, btnElement) {
+        currentPollutantFilter = type;
+        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+        buildHeatPointsForFilter(type);
+    }
+
+    loadSpatialNodesAndHeatMap();
+
+    map.on('click', function(e) {
+        updateSelectedCoordinates(e.latlng.lat, e.latlng.lng, "Ponto Personalizado no Mapa");
+    });
+
+    document.getElementById('radiusRange').addEventListener('input', renderHeatmap);
+    document.getElementById('blurRange').addEventListener('input', renderHeatmap);
 </script>
 </body>
 </html>
