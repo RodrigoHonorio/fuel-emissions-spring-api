@@ -6,13 +6,15 @@
     <title>S.P.I.R.E. - Dashboard Integrado</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body class="bg-light">
 
 <div class="container mt-5">
     <div class="row">
 
-        <!-- PAINEL 1: Calculadora de Emissões (Seu código original) -->
+        <!-- PAINEL 1: Calculadora de Emissões -->
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-primary text-white">
@@ -49,7 +51,7 @@
             </div>
         </div>
 
-        <!-- PAINEL 2: Dados ao vivo de Londres (Nova Integração) -->
+        <!-- PAINEL 2: Dados ao vivo de Londres -->
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-dark text-white">
@@ -77,10 +79,28 @@
         </div>
 
     </div>
+
+    <!-- PAINEL 3: Mapa Espacial (Dark Mode Dinâmico) -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card bg-dark text-white shadow">
+                <div class="card-header border-secondary">
+                    <h5 class="mb-0">🌍 S.P.I.R.E. Live Spatial Map (London)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" style="height: 500px; width: 100%; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-    // --- LÓGICA 1: Calculadora de Emissões (Seu código original) ---
+    // --- LÓGICA 1: Calculadora de Emissões ---
     document.getElementById('emissionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
 
@@ -109,19 +129,17 @@
         }
     });
 
-    // --- LÓGICA 2: Captura automática dos dados de Londres ao carregar a página ---
+    // --- LÓGICA 2: Captura automática dos dados de Londres ---
     window.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch('http://localhost:8080/api/v1/london/air-quality');
             if (!response.ok) throw new Error('Failed to fetch London data');
 
             const data = await response.json();
-            const forecast = data.currentForecast[0]; // Pega a previsão de hoje
+            const forecast = data.currentForecast[0];
 
-            // Atualiza o texto do painel
             document.getElementById('londonSummary').textContent = forecast.forecastSummary;
 
-            // Função para aplicar a cor do Bootstrap baseada na faixa de poluição
             const updateBadge = (elementId, bandValue) => {
                 const badge = document.getElementById(elementId);
                 badge.textContent = bandValue;
@@ -136,7 +154,6 @@
                 }
             };
 
-            // Atualiza as tags visuais
             updateBadge('no2Badge', forecast.nO2Band);
             updateBadge('pm10Badge', forecast.pM10Band);
             updateBadge('pm25Badge', forecast.pM25Band);
@@ -146,6 +163,45 @@
             document.getElementById('londonSummary').textContent = "Falha ao carregar dados em tempo real da TfL.";
         }
     });
+
+    // --- LÓGICA 3: Inicialização do Mapa (Esri Dark Mode) & Plotagem Dinâmica ---
+    const map = L.map('map').setView([51.5074, -0.1278], 11);
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+        maxZoom: 16
+    }).addTo(map);
+
+    // Função para buscar e plotar os nós espaciais cadastrados no backend
+    async function loadSpatialNodes() {
+        try {
+            const response = await fetch('http://localhost:8080/api/v1/spatial/nodes');
+            if (!response.ok) throw new Error('Failed to fetch spatial nodes');
+
+            const nodes = await response.json();
+
+            if (nodes.length === 0) {
+                // Marcador padrão caso o banco ainda esteja vazio
+                L.marker([51.5074, -0.1278]).addTo(map)
+                    .bindPopup('<b>London City Centre</b><br>Initial Spatial Node (Default).')
+                    .openPopup();
+            } else {
+                // Plota dinamicamente cada estação vinda do banco de dados espacial
+                nodes.forEach(node => {
+                    L.marker([node.latitude, node.longitude]).addTo(map)
+                        .bindPopup(`<b>${node.stationName}</b><br>Latitude: ${node.latitude.toFixed(4)}<br>Longitude: ${node.longitude.toFixed(4)}`);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading spatial nodes:', error);
+            // Fallback em caso de falha na requisição
+            L.marker([51.5074, -0.1278]).addTo(map)
+                .bindPopup('<b>London City Centre</b><br>Error loading dynamic spatial nodes.');
+        }
+    }
+
+    // Executa a carga dos nós ao iniciar o mapa
+    loadSpatialNodes();
 </script>
 </body>
 </html>
