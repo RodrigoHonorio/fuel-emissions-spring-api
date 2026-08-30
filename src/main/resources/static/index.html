@@ -23,7 +23,7 @@
     <!-- LAYOUT LADO A LADO (SPLIT VIEW) -->
     <div class="row">
 
-        <!-- COLUNA ESQUERDA: Calculadora, Relatório e TfL -->
+        <!-- COLUNA ESQUERDA: Calculadora, Relatório, NHS Analytics e TfL -->
         <div class="col-lg-4 mb-4">
 
             <!-- Calculadora de Emissões & Impacto -->
@@ -65,13 +65,26 @@
                         <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Calculate Impact & Emissions</button>
                     </form>
 
+                    <!-- Resultados e Relatórios -->
                     <div id="resultContainer" class="mt-3 d-none">
-                        <div class="alert alert-info border-0 shadow-sm py-2 px-3 mb-0" role="alert" style="border-left: 4px solid #0d6efd !important;">
+                        <div class="alert alert-info border-0 shadow-sm py-2 px-3 mb-2" role="alert" style="border-left: 4px solid #0d6efd !important;">
                             <h6 class="alert-heading fw-bold fs-6 mb-1">🌍 Local Impact Report</h6>
                             <hr class="my-1">
                             <p class="mb-1 small">Total Emissions: <strong id="resultValue">-</strong> kg</p>
                             <p class="mb-1 small">Closest Station: <strong id="resultStation">-</strong></p>
-                            <p class="mb-0 small">Distance: <strong id="resultDistance">-</strong> km</p>
+                            <p class="mb-2 small">Distance: <strong id="resultDistance">-</strong> km</p>
+
+                            <!-- Botão para Baixar Laudo PDF -->
+                            <button onclick="downloadPdfReport()" class="btn btn-outline-primary btn-sm w-100 fw-bold py-1" style="font-size: 0.8rem;">
+                                📄 Download Official PDF Report
+                            </button>
+                        </div>
+
+                        <!-- PAINEL NHS PUBLIC HEALTH ANALYTICS -->
+                        <div id="nhsAlertCard" class="alert border-0 shadow-sm py-2 px-3 mb-0 d-none" role="alert">
+                            <h6 class="alert-heading fw-bold fs-6 mb-1">🏥 NHS Health Advisory</h6>
+                            <hr class="my-1">
+                            <p id="nhsMessage" class="mb-0 small fw-semibold">-</p>
                         </div>
                     </div>
                 </div>
@@ -161,6 +174,7 @@
     let heatPoints = [];
     let heatLayer = null;
     let currentPollutantFilter = 'ALL';
+    let lastSimulationData = null; // Armazena dados para geração do PDF
 
     function updateSelectedCoordinates(lat, lng, popupText = "Ponto de Impacto Selecionado") {
         activeLat = lat;
@@ -183,7 +197,7 @@
           .bindPopup(`<b>${popupText}</b><br>Lat: ${activeLat.toFixed(4)}<br>Lng: ${activeLng.toFixed(4)}`).openPopup();
     }
 
-    // --- LÓGICA 1: Calculadora de Emissões & Impacto com Heatmap Dinâmico ---
+    // --- LÓGICA 1: Calculadora de Emissões & Impacto com Heatmap Dinâmico & NHS Analytics ---
     document.getElementById('emissionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
 
@@ -198,12 +212,16 @@
             if (!response.ok) throw new Error('Network response was not ok');
 
             const data = await response.json();
+            lastSimulationData = data; // Salva para o relatório PDF
 
             document.getElementById('resultValue').textContent = data.totalEmissionsKg.toFixed(2);
             document.getElementById('resultStation').textContent = data.closestStationName;
             document.getElementById('resultDistance').textContent = data.distanceKm.toFixed(2);
 
             document.getElementById('resultContainer').classList.remove('d-none');
+
+            // Avaliação de Saúde Pública (NHS Analytics)
+            evaluateNhsHealthAnalytics(data.totalEmissionsKg, data.closestStationName);
 
             // HEATMAP DINÂMICO: Adiciona ponto de alta intensidade proporcional às emissões calculadas
             const impactIntensity = Math.min(Math.max(data.totalEmissionsKg / 400, 0.8), 2.5);
@@ -218,6 +236,41 @@
             alert('Failed to connect to the spatial impact backend.');
         }
     });
+
+    // Função para Download do Relatório em PDF
+    function downloadPdfReport() {
+        if (!lastSimulationData) return;
+
+        const fuelType = document.getElementById('fuelType').value;
+        const volume = document.getElementById('fuelVolumeLitres').value;
+        const lat = document.getElementById('targetLat').value;
+        const lng = document.getElementById('targetLng').value;
+
+        const url = `http://localhost:8080/api/v1/reports/pdf?fuelType=${fuelType}&volume=${volume}&totalEmissionsKg=${lastSimulationData.totalEmissionsKg}&closestStationName=${encodeURIComponent(lastSimulationData.closestStationName)}&distanceKm=${lastSimulationData.distanceKm}&latitude=${lat}&longitude=${lng}`;
+
+        window.open(url, '_blank');
+    }
+
+    // Função de Análise de Saúde Pública (NHS)
+    function evaluateNhsHealthAnalytics(emissionsKg, stationName) {
+        const nhsCard = document.getElementById('nhsAlertCard');
+        const nhsMsg = document.getElementById('nhsMessage');
+        nhsCard.classList.remove('d-none');
+
+        if (emissionsKg > 500) {
+            nhsCard.className = "alert alert-danger border-0 shadow-sm py-2 px-3 mb-0";
+            nhsCard.style.borderLeft = "4px solid #dc3545";
+            nhsMsg.textContent = `Alerta NHS (Risco Alto): Carga expressiva em ${stationName}. Grupos sensíveis, asmáticos e com problemas respiratórios devem evitar atividades físicas ao ar livre nesta zona de Londres.`;
+        } else if (emissionsKg > 200) {
+            nhsCard.className = "alert alert-warning border-0 shadow-sm py-2 px-3 mb-0";
+            nhsCard.style.borderLeft = "4px solid #ffc107";
+            nhsMsg.textContent = `Alerta NHS (Risco Moderado): Impacto detectado próximo a ${stationName}. Sintomáticos leves podem notar irritação respiratória passageira.`;
+        } else {
+            nhsCard.className = "alert alert-success border-0 shadow-sm py-2 px-3 mb-0";
+            nhsCard.style.borderLeft = "4px solid #198754";
+            nhsMsg.textContent = `Alerta NHS (Baixo Risco): Níveis dentro dos limiares seguros regulatórios na região de ${stationName}. Condições normais para a saúde pública.`;
+        }
+    }
 
     // --- LÓGICA 2: Dados ao vivo TfL ---
     window.addEventListener('DOMContentLoaded', async () => {
@@ -318,7 +371,6 @@
         heatPoints = [];
         allSpatialNodes.forEach((node, index) => {
             let weight = 1.0;
-            // Simulação de variação de peso baseada no tipo de poluente selecionado
             if (filterType === 'NO2') {
                 weight = (index % 3 === 0) ? 1.6 : 0.4;
             } else if (filterType === 'PM10') {

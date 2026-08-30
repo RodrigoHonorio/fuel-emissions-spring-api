@@ -79,4 +79,14 @@ public class SpatialNode {
     public void setCoordinates(Point coordinates) {
         this.coordinates = coordinates;
     }
+
+    // --- Compatibility Aliases for Impact Service ---
+
+    public String getName() {
+        return this.stationName;
+    }
+
+    public Point getLocation() {
+        return this.coordinates;
+    }
 }
