@@ -1,0 +1,16 @@
+services:
+  spire-db:
+    image: postgis/postgis:15-3.3
+    container_name: spire-postgis
+    environment:
+      POSTGRES_USER: spire_user
+      POSTGRES_PASSWORD: spire_password
+      POSTGRES_DB: spire_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - spire_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  spire_pgdata:
