@@ -1,19 +1,11 @@
 package uk.org.spire.emissionsCalculator.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
-import java.time.LocalDateTime;
+import jakarta.persistence.*;
+import org.locationtech.jts.geom.Point;
 
 /**
- * Represents a fuel emission record in the database.
- * <p>
- * This entity stores the input parameters and the calculated Volatile Organic Compounds (VOC)
- * emissions for a specific refuelling event at a petrol station.
- * </p>
+ * Entidade JPA que representa o registro de emissões de uma estação de combustível,
+ * incluindo dados meteorológicos, cálculos de VOC e localização espacial (PostGIS).
  */
 @Entity
 @Table(name = "petrol_station_emissions")
@@ -23,23 +15,39 @@ public class PetrolStationEmission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "fuel_volume_litres", nullable = false)
     private double fuelVolumeLitres;
-    private double ambientTemperatureCelsius;
-    private double calculatedVocEmissionsKg;
-    private LocalDateTime calculationTimestamp;
 
-    // Constructors
+    @Column(name = "ambient_temperature_celsius", nullable = false)
+    private double ambientTemperatureCelsius;
+
+    @Column(name = "calculated_voc_emissions_kg", nullable = false)
+    private double calculatedVocEmissionsKg;
+
+    // Coluna espacial PostGIS mapeada via Hibernate Spatial e JTS Point
+    @Column(name = "location", columnDefinition = "geometry(Point, 4326)")
+    private Point location;
+
+    // Construtor vazio obrigatório pelo JPA
     public PetrolStationEmission() {
     }
 
+    // Construtor com parâmetros utilizado no Service
+    public PetrolStationEmission(double fuelVolumeLitres, double ambientTemperatureCelsius, double calculatedVocEmissionsKg, Point location) {
+        this.fuelVolumeLitres = fuelVolumeLitres;
+        this.ambientTemperatureCelsius = ambientTemperatureCelsius;
+        this.calculatedVocEmissionsKg = calculatedVocEmissionsKg;
+        this.location = location;
+    }
+
+    // Construtor legado (caso algum teste antigo use apenas 3 parâmetros)
     public PetrolStationEmission(double fuelVolumeLitres, double ambientTemperatureCelsius, double calculatedVocEmissionsKg) {
         this.fuelVolumeLitres = fuelVolumeLitres;
         this.ambientTemperatureCelsius = ambientTemperatureCelsius;
         this.calculatedVocEmissionsKg = calculatedVocEmissionsKg;
-        this.calculationTimestamp = LocalDateTime.now();
     }
 
-    // Getters and Setters omitted for brevity (generate them in your IDE)
+    // Getters e Setters
     public Long getId() {
         return id;
     }
@@ -72,11 +80,11 @@ public class PetrolStationEmission {
         this.calculatedVocEmissionsKg = calculatedVocEmissionsKg;
     }
 
-    public LocalDateTime getCalculationTimestamp() {
-        return calculationTimestamp;
+    public Point getLocation() {
+        return location;
     }
 
-    public void setCalculationTimestamp(LocalDateTime calculationTimestamp) {
-        this.calculationTimestamp = calculationTimestamp;
+    public void setLocation(Point location) {
+        this.location = location;
     }
 }

@@ -37,14 +37,26 @@ class EmissionsControllerTest {
         PetrolStationEmission mockEmission = new PetrolStationEmission(500.0, 25.0, 1.05);
         mockEmission.setId(1L);
 
-        when(emissionCalculationService.calculateAndSaveEmissions(any(FuelType.class), anyDouble(), anyDouble()))
-                .thenReturn(mockEmission);
+        // Atualizado para 7 parâmetros: FuelType, volume, temperatura, windSpeed, windDirection, latitude, longitude
+        when(emissionCalculationService.calculateAndSaveEmissions(
+                any(FuelType.class),
+                anyDouble(),
+                anyDouble(),
+                anyDouble(),
+                anyDouble(),
+                anyDouble(),
+                anyDouble()
+        )).thenReturn(mockEmission);
 
         String jsonRequest = """
                 {
                     "fuelType": "PETROL",
                     "fuelVolumeLitres": 500.0,
-                    "ambientTemperatureCelsius": 25.0
+                    "ambientTemperatureCelsius": 25.0,
+                    "windSpeed": 5.0,
+                    "windDirection": 180.0,
+                    "latitude": 51.5074,
+                    "longitude": -0.1278
                 }
                 """;
 
