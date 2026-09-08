@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import uk.org.spire.emissionsCalculator.dto.EmissionDetailsResponse;
 import uk.org.spire.emissionsCalculator.dto.EmissionRequest;
 import uk.org.spire.emissionsCalculator.dto.EmissionResponse;
 import uk.org.spire.emissionsCalculator.model.PetrolStationEmission;
@@ -20,7 +19,7 @@ import java.util.List;
  * </p>
  */
 @RestController
-@RequestMapping("/api/emissions")
+@RequestMapping("/api/v1/emissions")
 @CrossOrigin(origins = "*")
 public class EmissionsController {
 
@@ -61,21 +60,15 @@ public class EmissionsController {
      * @param latitude  Latitude of the center point (e.g., central London).
      * @param longitude Longitude of the center point.
      * @param distance  Radius range in meters.
-     * @return A {@link ResponseEntity} containing a list of matching {@link EmissionDetailsResponse} records.
+     * @return A {@link ResponseEntity} containing a list of matching {@link PetrolStationEmission} records.
      */
     @GetMapping("/radius")
-    public ResponseEntity<List<EmissionDetailsResponse>> getEmissionsWithinRadius(
+    public ResponseEntity<List<PetrolStationEmission>> getEmissionsWithinRadius(
             @RequestParam double latitude,
             @RequestParam double longitude,
             @RequestParam double distance) {
 
         List<PetrolStationEmission> results = calculationService.getEmissionsWithinRadius(latitude, longitude, distance);
-
-        // Converts entities to DTOs to avoid JTS serialization recursion issues with Jackson
-        List<EmissionDetailsResponse> responseList = results.stream()
-                .map(EmissionDetailsResponse::fromEntity)
-                .toList();
-
-        return ResponseEntity.ok(responseList);
+        return ResponseEntity.ok(results);
     }
 }

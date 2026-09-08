@@ -1,5 +1,7 @@
 package uk.org.spire.emissionsCalculator.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -14,14 +16,14 @@ import java.time.LocalDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
   /**
    * Handles custom validation exceptions for emission data.
-   *
-   * @param ex The thrown {@link InvalidEmissionDataException}.
-   * @return A {@link ResponseEntity} containing a structured {@link ErrorResponse} with HTTP 400 Bad Request.
    */
   @ExceptionHandler(InvalidEmissionDataException.class)
   public ResponseEntity<ErrorResponse> handleInvalidEmissionData(InvalidEmissionDataException ex) {
+    log.error(">>> ERRO DE VALIDAÇÃO CAPTURADO: {}", ex.getMessage(), ex);
     ErrorResponse error = new ErrorResponse(
             LocalDateTime.now(),
             HttpStatus.BAD_REQUEST.value(),
@@ -33,12 +35,10 @@ public class GlobalExceptionHandler {
 
   /**
    * Handles any unexpected general exceptions across the system.
-   *
-   * @param ex The thrown {@link Exception}.
-   * @return A {@link ResponseEntity} containing a structured {@link ErrorResponse} with HTTP 500 Internal Server Error.
    */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+    log.error(">>> ERRO INTERNO NÃO TRATADO CAPTURADO: {}", ex.getMessage(), ex);
     ErrorResponse error = new ErrorResponse(
             LocalDateTime.now(),
             HttpStatus.INTERNAL_SERVER_ERROR.value(),

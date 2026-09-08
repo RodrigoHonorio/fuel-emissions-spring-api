@@ -92,4 +92,14 @@ public class EmissionCalculationService {
         }
         return emissionRepository.findEmissionsWithinRadius(latitude, longitude, distanceInMeters);
     }
+
+    /**
+     * Retorna todos os registros de emissão cadastrados no banco de dados.
+     * Essencial para alimentar o mapa interativo no front-end.
+     *
+     * @return Lista com todas as estações salvas.
+     */
+    public List<PetrolStationEmission> getAllEmissions() {
+        return emissionRepository.findAll();
+    }
 }

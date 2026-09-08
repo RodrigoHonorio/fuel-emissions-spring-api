@@ -6,19 +6,13 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import org.locationtech.jts.geom.Point;
 
-/**
- * Represents a physical spatial node (e.g., an air quality monitoring station)
- * within the S.P.I.R.E. ecosystem.
- * <p>
- * This entity utilises the Java Topology Suite (JTS) to store precise geographical
- * coordinates, allowing for complex spatial queries and radius calculations
- * directly within the persistence layer.
- * </p>
- */
 @Entity
-@Table(name = "spatial_nodes")
+@Table(name = "spatial_nodes", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_station_name", columnNames = "station_name")
+})
 public class SpatialNode {
 
     @Id
@@ -26,36 +20,30 @@ public class SpatialNode {
     @Column(name = "id", updatable = false, nullable = false)
     private Long id;
 
-    /**
-     * The designated name of the monitoring station or sensor node.
-     */
-    @Column(name = "station_name", nullable = false, length = 150)
+    @Column(name = "station_name", nullable = false, unique = true, length = 150)
     private String stationName;
 
-    /**
-     * The exact geographical coordinates of the node.
-     * Defined as a JTS Point using the WGS 84 coordinate reference system.
-     */
     @Column(name = "coordinates", columnDefinition = "geometry(Point,4326)", nullable = false)
     private Point coordinates;
 
-    /**
-     * Default constructor required by the JPA specification.
-     * Protected to prevent direct instantiation without required parameters.
-     */
+    // Status da Qualidade do Ar (LOW, MODERATE, HIGH)
+    @Column(name = "aqi_status", length = 50)
+    private String aqiStatus = "LOW";
+
     protected SpatialNode() {
         // Required by Hibernate
     }
 
-    /**
-     * Parameterised constructor to initialise a new Spatial Node.
-     *
-     * @param stationName The name of the environmental monitoring station.
-     * @param coordinates The geographical location mapped as a JTS Point.
-     */
     public SpatialNode(String stationName, Point coordinates) {
         this.stationName = stationName;
         this.coordinates = coordinates;
+        this.aqiStatus = "LOW";
+    }
+
+    public SpatialNode(String stationName, Point coordinates, String aqiStatus) {
+        this.stationName = stationName;
+        this.coordinates = coordinates;
+        this.aqiStatus = aqiStatus != null ? aqiStatus : "LOW";
     }
 
     // --- Getters and Setters ---
@@ -78,6 +66,14 @@ public class SpatialNode {
 
     public void setCoordinates(Point coordinates) {
         this.coordinates = coordinates;
+    }
+
+    public String getAqiStatus() {
+        return aqiStatus;
+    }
+
+    public void setAqiStatus(String aqiStatus) {
+        this.aqiStatus = aqiStatus;
     }
 
     // --- Compatibility Aliases for Impact Service ---

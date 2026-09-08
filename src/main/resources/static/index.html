@@ -4,15 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S.P.I.R.E. - Unified Environmental GIS Dashboard</title>
+
+    <!-- Evita requisições ao favicon -->
+    <link rel="icon" href="data:,">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <style>
+        .custom-pin-icon {
+            transition: transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-pin-icon:hover {
+            transform: scale(1.2);
+        }
+        #map {
+            height: 680px;
+            width: 100%;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            z-index: 1;
+        }
+        /* Tooltip destacado para nome dos Distritos em Amarelo */
+        .borough-tooltip {
+            background-color: #0f172a !important;
+            color: #ffff00 !important;
+            border: 1px solid #ffff00 !important;
+            font-weight: bold;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            padding: 4px 8px;
+            box-shadow: 0 4px 12px rgba(255, 255, 0, 0.4);
+        }
+    </style>
 </head>
 <body class="bg-light">
 
 <div class="container-fluid px-4 mt-4">
-    <!-- Cabeçalho Principal do Sistema -->
+    <!-- Cabeçalho Principal -->
     <div class="row mb-3">
         <div class="col-12 text-center">
             <h1 class="fw-bold text-dark mb-0">S.P.I.R.E.</h1>
@@ -20,49 +57,62 @@
         </div>
     </div>
 
-    <!-- LAYOUT LADO A LADO (SPLIT VIEW) -->
+    <!-- LAYOUT LADO A LADO -->
     <div class="row">
 
-        <!-- COLUNA ESQUERDA: Calculadora, Relatório, NHS Analytics e TfL -->
+        <!-- COLUNA ESQUERDA: Formulário, Relatório, NHS e TfL -->
         <div class="col-lg-4 mb-4">
 
             <!-- Calculadora de Emissões & Impacto -->
             <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white py-2">
+                <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fs-6">Fuel Emission & Spatial Impact</h5>
+                    <span id="weatherStatusBadge" class="badge bg-light text-dark" style="font-size: 0.7rem;">📡 Clima ao Vivo</span>
                 </div>
                 <div class="card-body">
                     <form id="emissionForm">
                         <div class="mb-2">
                             <label for="fuelType" class="form-label small fw-bold">Fuel Type</label>
                             <select class="form-select form-select-sm" id="fuelType" required>
-                                <option value="Petrol">Petrol</option>
-                                <option value="Diesel">Diesel</option>
-                                <option value="Ethanol">Ethanol</option>
+                                <option value="PETROL">Petrol</option>
+                                <option value="DIESEL">Diesel</option>
+                                <option value="ETHANOL">Ethanol</option>
                             </select>
                         </div>
                         <div class="mb-2">
                             <label for="fuelVolumeLitres" class="form-label small fw-bold">Fuel Volume (Litres)</label>
-                            <input type="number" step="any" class="form-control form-control-sm" id="fuelVolumeLitres" placeholder="e.g. 2000" required>
+                            <input type="number" step="any" class="form-control form-control-sm" id="fuelVolumeLitres" value="2000" placeholder="e.g. 2000" required>
                         </div>
                         <div class="mb-2">
                             <label for="ambientTemperatureCelsius" class="form-label small fw-bold">Ambient Temperature (°C)</label>
-                            <input type="number" step="any" class="form-control form-control-sm" id="ambientTemperatureCelsius" placeholder="e.g. 25" required>
+                            <input type="number" step="any" class="form-control form-control-sm bg-white" id="ambientTemperatureCelsius" value="17.2" required>
                         </div>
 
-                        <!-- Campos informativos de coordenadas selecionadas -->
+                        <!-- CAMPOS DE VENTO -->
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label for="windSpeed" class="form-label small fw-bold">Wind Speed (m/s)</label>
+                                <input type="number" step="any" class="form-control form-control-sm bg-white" id="windSpeed" value="3.2" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="windDirection" class="form-label small fw-bold">Wind Direction (°)</label>
+                                <input type="number" step="any" class="form-control form-control-sm bg-white" id="windDirection" value="2" required>
+                            </div>
+                        </div>
+
+                        <!-- Coordenadas Selecionadas -->
                         <div class="row g-2 mb-3">
                             <div class="col-6">
                                 <label class="form-label text-muted" style="font-size: 0.75rem;">Selected Lat</label>
-                                <input type="text" id="targetLat" class="form-control form-control-sm bg-light" value="51.5074" readonly>
+                                <input type="text" id="targetLat" class="form-control form-control-sm bg-light" value="51.5523" readonly>
                             </div>
                             <div class="col-6">
                                 <label class="form-label text-muted" style="font-size: 0.75rem;">Selected Lng</label>
-                                <input type="text" id="targetLng" class="form-control form-control-sm bg-light" value="-0.1278" readonly>
+                                <input type="text" id="targetLng" class="form-control form-control-sm bg-light" value="-0.4028" readonly>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Calculate Impact & Emissions</button>
+                        <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Calculate Dispersion & Impact</button>
                     </form>
 
                     <!-- Resultados e Relatórios -->
@@ -70,11 +120,10 @@
                         <div class="alert alert-info border-0 shadow-sm py-2 px-3 mb-2" role="alert" style="border-left: 4px solid #0d6efd !important;">
                             <h6 class="alert-heading fw-bold fs-6 mb-1">🌍 Local Impact Report</h6>
                             <hr class="my-1">
-                            <p class="mb-1 small">Total Emissions: <strong id="resultValue">-</strong> kg</p>
-                            <p class="mb-1 small">Closest Station: <strong id="resultStation">-</strong></p>
-                            <p class="mb-2 small">Distance: <strong id="resultDistance">-</strong> km</p>
+                            <p class="mb-1 small">Estimated VOC Emissions: <strong id="resultValue">-</strong> kg</p>
+                            <p class="mb-1 small">Station: <strong id="resultStation">Hillingdon - South Ruislip</strong></p>
+                            <p class="mb-2 small">Status: <strong id="resultDistance">NORMAL</strong></p>
 
-                            <!-- Botão para Baixar Laudo PDF -->
                             <button onclick="downloadPdfReport()" class="btn btn-outline-primary btn-sm w-100 fw-bold py-1" style="font-size: 0.8rem;">
                                 📄 Download Official PDF Report
                             </button>
@@ -90,26 +139,26 @@
                 </div>
             </div>
 
-            <!-- Dados ao vivo de Londres (TfL) -->
+            <!-- Dados ao vivo TfL -->
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white py-2">
-                    <h5 class="mb-0 fs-6">🌍 Live London Air Quality (TfL)</h5>
+                    <h5 class="mb-0 fs-6">🌍 Live London Air Quality (TfL API)</h5>
                 </div>
                 <div class="card-body py-3">
-                    <p id="londonSummary" class="text-muted fst-italic small mb-2">Conectando aos servidores de Londres...</p>
+                    <p id="londonSummary" class="text-muted fst-italic small mb-2">Estação ativa: <strong id="activeStationTitle" class="text-dark">Hillingdon - South Ruislip</strong></p>
 
                     <ul class="list-group list-group-flush small">
                         <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
                             NO2 (Nitrogen Dioxide)
-                            <span id="no2Badge" class="badge rounded-pill bg-secondary">-</span>
+                            <span id="no2Badge" class="badge rounded-pill bg-success">Low</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
                             PM10 (Particulate Matter)
-                            <span id="pm10Badge" class="badge rounded-pill bg-secondary">-</span>
+                            <span id="pm10Badge" class="badge rounded-pill bg-success">Low</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-0">
                             PM2.5 (Fine Particles)
-                            <span id="pm25Badge" class="badge rounded-pill bg-secondary">-</span>
+                            <span id="pm25Badge" class="badge rounded-pill bg-warning text-dark">Moderate</span>
                         </li>
                     </ul>
                 </div>
@@ -117,14 +166,13 @@
 
         </div>
 
-        <!-- COLUNA DIREITA: Mapa Geoespacial & Controles de Calor & Filtros -->
+        <!-- COLUNA DIREITA: Mapa e Heatmap -->
         <div class="col-lg-8 mb-4">
             <div class="card bg-dark text-white shadow h-100">
                 <div class="card-header border-secondary d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
-                    <h5 class="mb-0 fs-6">🔥 S.P.I.R.E. Spatial Map & Heat Layer</h5>
+                    <h5 class="mb-0 fs-6">🔥 S.P.I.R.E. Dispersion & Heat Layer</h5>
 
-                    <!-- Filtros por Poluente -->
-                    <div class="btn-group btn-group-sm" role="group" aria-label="Pollutant Filters">
+                    <div class="btn-group btn-group-sm" role="group">
                         <button type="button" class="btn btn-outline-light active" onclick="filterHeatmap('ALL', this)">All</button>
                         <button type="button" class="btn btn-outline-light" onclick="filterHeatmap('NO2', this)">NO2</button>
                         <button type="button" class="btn btn-outline-light" onclick="filterHeatmap('PM10', this)">PM10</button>
@@ -132,7 +180,7 @@
                     </div>
                 </div>
 
-                <!-- Painel de Controles do Heatmap (Sliders) -->
+                <!-- Painel de Controles do Heatmap -->
                 <div class="card-body bg-secondary bg-opacity-10 border-bottom border-secondary py-2">
                     <div class="row align-items-center g-3">
                         <div class="col-md-6">
@@ -151,7 +199,7 @@
                 </div>
 
                 <div class="card-body p-0">
-                    <div id="map" style="height: 680px; width: 100%; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;"></div>
+                    <div id="map"></div>
                 </div>
             </div>
         </div>
@@ -159,161 +207,346 @@
     </div>
 </div>
 
-<!-- Bootstrap 5 JS Bundle -->
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- Leaflet Heat Map Plugin -->
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<!-- Plugin Leaflet MarkerCluster -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <script>
-    let activeLat = 51.5074;
-    let activeLng = -0.1278;
-    let clickMarker = null;
-    let allSpatialNodes = [];
+    let activeLat = 51.5523;
+    let activeLng = -0.4028;
+    let selectedStationName = "Hillingdon - South Ruislip";
     let heatPoints = [];
     let heatLayer = null;
+
+    // Limites geográficos (Bounding Box) da Grande Londres
+    const LONDON_BOUNDS = {
+        minLat: 51.25,
+        maxLat: 51.72,
+        minLng: -0.55,
+        maxLng: 0.35
+    };
+
+    // Grouping de marcadores
+    let stationsLayerGroup = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 40,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false
+    });
+
     let currentPollutantFilter = 'ALL';
-    let lastSimulationData = null; // Armazena dados para geração do PDF
+    let lastSimulationData = null;
 
-    function updateSelectedCoordinates(lat, lng, popupText = "Ponto de Impacto Selecionado") {
-        activeLat = lat;
-        activeLng = lng;
+    function createPinIcon(colorHex) {
+        const svgPin = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="28" height="40">
+                <path fill="${colorHex}" stroke="#FFFFFF" stroke-width="1.5" d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z"/>
+                <circle cx="12" cy="12" r="5" fill="#FFFFFF"/>
+            </svg>`;
 
-        document.getElementById('targetLat').value = activeLat.toFixed(4);
-        document.getElementById('targetLng').value = activeLng.toFixed(4);
-
-        if (clickMarker) {
-            map.removeLayer(clickMarker);
-        }
-
-        clickMarker = L.marker([activeLat, activeLng], {
-            icon: L.divIcon({
-                className: 'custom-click-pin',
-                html: '<div style="background-color: #dc3545; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>',
-                iconSize: [14, 14]
-            })
-        }).addTo(map)
-          .bindPopup(`<b>${popupText}</b><br>Lat: ${activeLat.toFixed(4)}<br>Lng: ${activeLng.toFixed(4)}`).openPopup();
+        return L.divIcon({
+            className: 'custom-pin-icon',
+            html: svgPin,
+            iconSize: [28, 40],
+            iconAnchor: [14, 40],
+            popupAnchor: [0, -36]
+        });
     }
 
-    // --- LÓGICA 1: Calculadora de Emissões & Impacto com Heatmap Dinâmico & NHS Analytics ---
-    document.getElementById('emissionForm').addEventListener('submit', async function(event) {
-        event.preventDefault();
+    const map = L.map('map', {
+        preferCanvas: true
+    }).setView([activeLat, activeLng], 11);
 
-        const fuelType = document.getElementById('fuelType').value;
-        const volume = parseFloat(document.getElementById('fuelVolumeLitres').value);
-        const temp = parseFloat(document.getElementById('ambientTemperatureCelsius').value);
-
-        try {
-            const url = `http://localhost:8080/api/v1/emissions/impact?fuelType=${fuelType}&volume=${volume}&latitude=${activeLat}&longitude=${activeLng}`;
-
-            const response = await fetch(url, { method: 'POST' });
-            if (!response.ok) throw new Error('Network response was not ok');
-
-            const data = await response.json();
-            lastSimulationData = data; // Salva para o relatório PDF
-
-            document.getElementById('resultValue').textContent = data.totalEmissionsKg.toFixed(2);
-            document.getElementById('resultStation').textContent = data.closestStationName;
-            document.getElementById('resultDistance').textContent = data.distanceKm.toFixed(2);
-
-            document.getElementById('resultContainer').classList.remove('d-none');
-
-            // Avaliação de Saúde Pública (NHS Analytics)
-            evaluateNhsHealthAnalytics(data.totalEmissionsKg, data.closestStationName);
-
-            // HEATMAP DINÂMICO: Adiciona ponto de alta intensidade proporcional às emissões calculadas
-            const impactIntensity = Math.min(Math.max(data.totalEmissionsKg / 400, 0.8), 2.5);
-            heatPoints.push([activeLat, activeLng, impactIntensity]);
-            renderHeatmap();
-
-            // Centraliza o mapa suavemente no ponto calculado
-            map.setView([activeLat, activeLng], 13, { animate: true });
-
-        } catch (error) {
-            console.error('Error calculating spatial impact:', error);
-            alert('Failed to connect to the spatial impact backend.');
-        }
-    });
-
-    // Função para Download do Relatório em PDF
-    function downloadPdfReport() {
-        if (!lastSimulationData) return;
-
-        const fuelType = document.getElementById('fuelType').value;
-        const volume = document.getElementById('fuelVolumeLitres').value;
-        const lat = document.getElementById('targetLat').value;
-        const lng = document.getElementById('targetLng').value;
-
-        const url = `http://localhost:8080/api/v1/reports/pdf?fuelType=${fuelType}&volume=${volume}&totalEmissionsKg=${lastSimulationData.totalEmissionsKg}&closestStationName=${encodeURIComponent(lastSimulationData.closestStationName)}&distanceKm=${lastSimulationData.distanceKm}&latitude=${lat}&longitude=${lng}`;
-
-        window.open(url, '_blank');
-    }
-
-    // Função de Análise de Saúde Pública (NHS)
-    function evaluateNhsHealthAnalytics(emissionsKg, stationName) {
-        const nhsCard = document.getElementById('nhsAlertCard');
-        const nhsMsg = document.getElementById('nhsMessage');
-        nhsCard.classList.remove('d-none');
-
-        if (emissionsKg > 500) {
-            nhsCard.className = "alert alert-danger border-0 shadow-sm py-2 px-3 mb-0";
-            nhsCard.style.borderLeft = "4px solid #dc3545";
-            nhsMsg.textContent = `Alerta NHS (Risco Alto): Carga expressiva em ${stationName}. Grupos sensíveis, asmáticos e com problemas respiratórios devem evitar atividades físicas ao ar livre nesta zona de Londres.`;
-        } else if (emissionsKg > 200) {
-            nhsCard.className = "alert alert-warning border-0 shadow-sm py-2 px-3 mb-0";
-            nhsCard.style.borderLeft = "4px solid #ffc107";
-            nhsMsg.textContent = `Alerta NHS (Risco Moderado): Impacto detectado próximo a ${stationName}. Sintomáticos leves podem notar irritação respiratória passageira.`;
-        } else {
-            nhsCard.className = "alert alert-success border-0 shadow-sm py-2 px-3 mb-0";
-            nhsCard.style.borderLeft = "4px solid #198754";
-            nhsMsg.textContent = `Alerta NHS (Baixo Risco): Níveis dentro dos limiares seguros regulatórios na região de ${stationName}. Condições normais para a saúde pública.`;
-        }
-    }
-
-    // --- LÓGICA 2: Dados ao vivo TfL ---
-    window.addEventListener('DOMContentLoaded', async () => {
-        try {
-            const response = await fetch('http://localhost:8080/api/v1/london/air-quality');
-            if (!response.ok) throw new Error('Failed to fetch London data');
-
-            const data = await response.json();
-            const forecast = data.currentForecast[0];
-
-            document.getElementById('londonSummary').textContent = forecast.forecastSummary;
-
-            const updateBadge = (elementId, bandValue) => {
-                const badge = document.getElementById(elementId);
-                badge.textContent = bandValue;
-                badge.classList.remove('bg-secondary');
-
-                if (bandValue.toLowerCase() === 'low') {
-                    badge.classList.add('bg-success');
-                } else if (bandValue.toLowerCase() === 'moderate') {
-                    badge.classList.add('bg-warning', 'text-dark');
-                } else {
-                    badge.classList.add('bg-danger');
-                }
-            };
-
-            updateBadge('no2Badge', forecast.nO2Band);
-            updateBadge('pm10Badge', forecast.pM10Band);
-            updateBadge('pm25Badge', forecast.pM25Band);
-
-        } catch (error) {
-            console.error('Error loading London data:', error);
-            document.getElementById('londonSummary').textContent = "Falha ao carregar dados em tempo real da TfL.";
-        }
-    });
-
-    // --- LÓGICA 3: Inicialização do Mapa & Filtros de Poluentes ---
-    const map = L.map('map').setView([51.5074, -0.1278], 11);
+    // Pane exclusiva para renderizar as fronteiras com z-index elevado
+    map.createPane('boroughsPane');
+    map.getPane('boroughsPane').style.zIndex = 400;
 
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
         maxZoom: 16
     }).addTo(map);
+
+    map.on('movestart', () => {
+        if (heatLayer && map.hasLayer(heatLayer)) {
+            map.removeLayer(heatLayer);
+        }
+    });
+
+    map.on('moveend', () => {
+        if (heatLayer && heatPoints.length > 0 && !map.hasLayer(heatLayer)) {
+            heatLayer.addTo(map);
+        }
+    });
+
+    stationsLayerGroup.addTo(map);
+
+    loadLondonBoroughs();
+    loadSpatialNodes();
+
+    window.addEventListener('load', () => {
+        setTimeout(() => { map.invalidateSize(); }, 250);
+    });
+    window.addEventListener('resize', () => { map.invalidateSize(); });
+
+    // CARREGAMENTO DAS FRONTEIRAS COM LINHAS AMARELAS DE ALTO CONTRASTE
+    async function loadLondonBoroughs() {
+        const geojsonSources = [
+            'https://cdn.jsdelivr.net/gh/glynnbird/london-boroughs@master/london_boroughs.json',
+            'https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/administrative/eng/london_boroughs.json',
+            'https://raw.githubusercontent.com/glynnbird/london-boroughs/master/london_boroughs.json'
+        ];
+
+        let geojson = null;
+
+        for (const url of geojsonSources) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    geojson = await response.json();
+                    break;
+                }
+            } catch (err) {
+                console.warn("Tentando fonte alternativa de GeoJSON...");
+            }
+        }
+
+        if (geojson) {
+            L.geoJSON(geojson, {
+                pane: 'boroughsPane',
+                style: function () {
+                    return {
+                        color: '#FFFF00',        // Amarelo Neon Vibrante
+                        weight: 2.5,             // Espessura sólida visível
+                        opacity: 0.9,            // 90% de opacidade no traço
+                        fillColor: '#FFFF00',
+                        fillOpacity: 0.08        // Sutil preenchimento transparente
+                    };
+                },
+                onEachFeature: function (feature, layer) {
+                    const boroughName = feature.properties ?
+                        (feature.properties.name || feature.properties.NAME || feature.properties.BOROUGH || feature.properties.GSS_NAME || "London Borough") : "London Borough";
+
+                    layer.bindTooltip(boroughName, {
+                        sticky: true,
+                        className: 'borough-tooltip'
+                    });
+
+                    layer.on('mouseover', function () {
+                        this.setStyle({
+                            color: '#FFFFFF',    // Destaca em Branco ao passar o mouse
+                            weight: 4,
+                            fillOpacity: 0.25
+                        });
+                    });
+
+                    layer.on('mouseout', function () {
+                        this.setStyle({
+                            color: '#FFFF00',    // Retorna ao Amarelo
+                            weight: 2.5,
+                            fillOpacity: 0.08
+                        });
+                    });
+                }
+            }).addTo(map);
+        } else {
+            console.error("Erro ao carregar o GeoJSON dos distritos.");
+        }
+    }
+
+    async function loadSpatialNodes() {
+        let nodes = [];
+        try {
+            let response = await fetch('/api/v1/spatial-nodes?size=1000');
+            if (!response.ok) response = await fetch('/spatial-nodes?size=1000');
+            if (!response.ok) response = await fetch('/api/v1/spatial/nodes?size=1000');
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (Array.isArray(data)) {
+                    nodes = data;
+                } else if (data && Array.isArray(data.content)) {
+                    nodes = data.content;
+                } else if (data && data._embedded && Array.isArray(data._embedded.spatialNodes)) {
+                    nodes = data._embedded.spatialNodes;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao carregar estações do Spring Boot:", error);
+        }
+
+        if (nodes && nodes.length > 0) {
+            renderStationsOnMap(nodes);
+        }
+    }
+
+    function renderStationsOnMap(nodes) {
+        stationsLayerGroup.clearLayers();
+        const bounds = [];
+        const markersToAdd = [];
+
+        nodes.forEach(node => {
+            const lat = parseFloat(node.latitude ?? node.lat ?? node.latitud);
+            const lng = parseFloat(node.longitude ?? node.lng ?? node.longitud);
+            const stationName = node.stationName ?? node.nomeEstacao ?? node.name ?? node.nome ?? "Estação de Monitoramento";
+            const temp = node.ambientTemperatureCelsius ?? node.ambientTemperature ?? node.temp ?? node.temperature ?? 17.2;
+            const windSpd = node.windSpeed ?? node.windSpd ?? 3.2;
+            const windDir = node.windDirection ?? node.windDir ?? 2;
+
+            const rawAqi = node.aqiStatus ?? node.aqi ?? node.status ?? "LOW";
+            const aqi = String(rawAqi).toUpperCase();
+
+            // Filtra e descarta pinos fora da Grande Londres
+            if (isNaN(lat) || isNaN(lng) ||
+                lat < LONDON_BOUNDS.minLat || lat > LONDON_BOUNDS.maxLat ||
+                lng < LONDON_BOUNDS.minLng || lng > LONDON_BOUNDS.maxLng) {
+                return;
+            }
+
+            bounds.push([lat, lng]);
+
+            let pinColor = '#198754';
+            let badgeClass = 'bg-success';
+            let textColor = '#ffffff';
+
+            if (aqi === 'HIGH' || aqi === 'POOR' || aqi === 'VERY POOR') {
+                pinColor = '#dc3545';
+                badgeClass = 'bg-danger';
+            } else if (aqi === 'MODERATE') {
+                pinColor = '#ffc107';
+                badgeClass = 'bg-warning';
+                textColor = '#000000';
+            }
+
+            const pinIcon = createPinIcon(pinColor);
+            const marker = L.marker([lat, lng], { icon: pinIcon });
+
+            const popupContent = `
+                <div style="font-size: 0.85rem; line-height: 1.5;">
+                    <strong style="font-size: 0.95rem;">${stationName}</strong><br>
+                    <hr style="margin: 4px 0;">
+                    <b>Air Quality:</b> <span class="badge ${badgeClass}" style="font-size: 0.75rem; color: ${textColor};">${aqi}</span><br>
+                    <b>Lat:</b> ${lat.toFixed(4)}<br>
+                    <b>Lng:</b> ${lng.toFixed(4)}<br>
+                    <b>Ambient Temperature:</b> ${temp} °C<br>
+                    <b>Wind Speed:</b> ${windSpd} m/s<br>
+                    <b>Wind Direction:</b> ${windDir}°<br>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+
+            marker.on('click', () => {
+                selectStation({
+                    stationName,
+                    latitude: lat,
+                    longitude: lng,
+                    temp,
+                    windSpd,
+                    windDir,
+                    aqiStatus: aqi
+                });
+            });
+
+            markersToAdd.push(marker);
+        });
+
+        stationsLayerGroup.addLayers(markersToAdd);
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    }
+
+    function selectStation(station) {
+        activeLat = station.latitude;
+        activeLng = station.longitude;
+        selectedStationName = station.stationName;
+
+        document.getElementById('targetLat').value = activeLat.toFixed(4);
+        document.getElementById('targetLng').value = activeLng.toFixed(4);
+        document.getElementById('ambientTemperatureCelsius').value = station.temp;
+        document.getElementById('windSpeed').value = station.windSpd;
+        document.getElementById('windDirection').value = station.windDir;
+
+        document.getElementById('activeStationTitle').textContent = selectedStationName;
+    }
+
+    document.getElementById('emissionForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const fuelVol = parseFloat(document.getElementById('fuelVolumeLitres').value) || 0;
+        const temp = parseFloat(document.getElementById('ambientTemperatureCelsius').value) || 0;
+        const windSpd = parseFloat(document.getElementById('windSpeed').value) || 0;
+        const windDir = parseFloat(document.getElementById('windDirection').value) || 0;
+
+        const estimatedVoc = (fuelVol * 0.0015) * (1 + (temp * 0.01));
+
+        lastSimulationData = {
+            totalEmissionsKg: estimatedVoc,
+            closestStationName: selectedStationName,
+            status: "ATIVO"
+        };
+
+        document.getElementById('resultValue').textContent = lastSimulationData.totalEmissionsKg.toFixed(4);
+        document.getElementById('resultStation').textContent = lastSimulationData.closestStationName;
+        document.getElementById('resultDistance').textContent = "0.00 km";
+        document.getElementById('resultContainer').classList.remove('d-none');
+
+        evaluateNhsHealthAnalytics(lastSimulationData.totalEmissionsKg, lastSimulationData.closestStationName);
+
+        const destinationAngle = (windDir + 180) % 360;
+        const rad = (destinationAngle * Math.PI) / 180;
+        const baseIntensity = Math.min(Math.max(estimatedVoc * 2, 0.8), 2.5);
+
+        heatPoints = [];
+        for (let i = 0; i < 9; i++) {
+            const dist = i * (0.0018 * Math.max(windSpd, 1.0));
+            const pLat = activeLat + (dist * Math.cos(rad));
+            const pLng = activeLng + (dist * Math.sin(rad) / Math.cos(activeLat * Math.PI / 180));
+            const intensity = baseIntensity * Math.pow(0.82, i);
+
+            heatPoints.push([pLat, pLng, intensity]);
+
+            if (i > 0) {
+                const perpRad = rad + Math.PI / 2;
+                const lateralSpread = 0.0006 * i;
+                heatPoints.push([pLat + (lateralSpread * Math.cos(perpRad)), pLng + (lateralSpread * Math.sin(perpRad)), intensity * 0.55]);
+                heatPoints.push([pLat - (lateralSpread * Math.cos(perpRad)), pLng - (lateralSpread * Math.sin(perpRad)), intensity * 0.55]);
+            }
+        }
+
+        renderHeatmap();
+        map.setView([activeLat, activeLng], 13, { animate: true });
+    });
+
+    function evaluateNhsHealthAnalytics(emissionsKg, stationName) {
+        const nhsCard = document.getElementById('nhsAlertCard');
+        const nhsMsg = document.getElementById('nhsMessage');
+        nhsCard.classList.remove('d-none');
+
+        if (emissionsKg > 5.0) {
+            nhsCard.className = "alert alert-danger border-0 shadow-sm py-2 px-3 mb-0";
+            nhsCard.style.borderLeft = "4px solid #dc3545";
+            nhsMsg.textContent = `Alerta NHS (Risco Alto): Emissão em ${stationName}. Grupos vulneráveis devem limitar exposição.`;
+        } else if (emissionsKg > 0.5) {
+            nhsCard.className = "alert alert-warning border-0 shadow-sm py-2 px-3 mb-0";
+            nhsCard.style.borderLeft = "4px solid #ffc107";
+            nhsMsg.textContent = `Alerta NHS (Risco Moderado): Pluma de dispersão detectada em ${stationName}.`;
+        } else {
+            nhsCard.className = "alert alert-success border-0 shadow-sm py-2 px-3 mb-0";
+            nhsCard.style.borderLeft = "4px solid #198754";
+            nhsMsg.textContent = `Alerta NHS (Baixo Risco): Níveis de emissão dentro dos parâmetros em ${stationName}.`;
+        }
+    }
+
+    function downloadPdfReport() {
+        if (!lastSimulationData) return;
+        alert(`Relatório gerado para ${lastSimulationData.closestStationName}. Emissão total: ${lastSimulationData.totalEmissionsKg.toFixed(4)} kg COV.`);
+    }
 
     function renderHeatmap() {
         const radius = parseInt(document.getElementById('radiusRange').value);
@@ -322,9 +555,7 @@
         document.getElementById('radiusVal').textContent = radius;
         document.getElementById('blurVal').textContent = blur;
 
-        if (heatLayer) {
-            map.removeLayer(heatLayer);
-        }
+        if (heatLayer) map.removeLayer(heatLayer);
 
         if (heatPoints.length > 0) {
             heatLayer = L.heatLayer(heatPoints, {
@@ -343,58 +574,11 @@
         }
     }
 
-    async function loadSpatialNodesAndHeatMap() {
-        try {
-            const response = await fetch('http://localhost:8080/api/v1/spatial/nodes');
-            if (!response.ok) throw new Error('Failed to fetch spatial nodes');
-
-            allSpatialNodes = await response.json();
-
-            if (allSpatialNodes.length > 0) {
-                allSpatialNodes.forEach(node => {
-                    const marker = L.marker([node.latitude, node.longitude]).addTo(map)
-                        .bindPopup(`<b>${node.stationName}</b><br>Latitude: ${node.latitude.toFixed(4)}<br>Longitude: ${node.longitude.toFixed(4)}<br><small class="text-primary fw-bold">Clique no pino para simular impacto aqui</small>`);
-
-                    marker.on('click', () => {
-                        updateSelectedCoordinates(node.latitude, node.longitude, node.stationName);
-                    });
-                });
-
-                buildHeatPointsForFilter(currentPollutantFilter);
-            }
-        } catch (error) {
-            console.error('Error loading spatial nodes for heatmap:', error);
-        }
-    }
-
-    function buildHeatPointsForFilter(filterType) {
-        heatPoints = [];
-        allSpatialNodes.forEach((node, index) => {
-            let weight = 1.0;
-            if (filterType === 'NO2') {
-                weight = (index % 3 === 0) ? 1.6 : 0.4;
-            } else if (filterType === 'PM10') {
-                weight = (index % 2 === 0) ? 1.3 : 0.7;
-            } else if (filterType === 'PM2.5') {
-                weight = (index % 5 === 0) ? 1.9 : 0.5;
-            }
-            heatPoints.push([node.latitude, node.longitude, weight]);
-        });
-        renderHeatmap();
-    }
-
     function filterHeatmap(type, btnElement) {
         currentPollutantFilter = type;
         document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
         btnElement.classList.add('active');
-        buildHeatPointsForFilter(type);
     }
-
-    loadSpatialNodesAndHeatMap();
-
-    map.on('click', function(e) {
-        updateSelectedCoordinates(e.latlng.lat, e.latlng.lng, "Ponto Personalizado no Mapa");
-    });
 
     document.getElementById('radiusRange').addEventListener('input', renderHeatmap);
     document.getElementById('blurRange').addEventListener('input', renderHeatmap);

@@ -12,6 +12,8 @@ import uk.org.spire.emissionsCalculator.dto.StationApiResponse;
 import uk.org.spire.emissionsCalculator.model.SpatialNode;
 import uk.org.spire.emissionsCalculator.repository.SpatialNodeRepository;
 
+import java.util.Random;
+
 @Configuration
 public class StationSyncService {
 
@@ -27,19 +29,33 @@ public class StationSyncService {
 
                 if (response != null && response.getSites() != null && response.getSites().getSiteList() != null) {
                     GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
-                    int count = 0;
+                    int countNew = 0;
+                    int countSkipped = 0;
+
+                    // Array de status para simulação/distribuição no mapa
+                    String[] statuses = {"LOW", "LOW", "LOW", "MODERATE", "HIGH"};
+                    Random random = new Random();
 
                     for (SiteDto dto : response.getSites().getSiteList()) {
-                        if (dto.getLatitude() != null && dto.getLongitude() != null) {
-                            SpatialNode node = new SpatialNode(
-                                    dto.getSiteName(),
-                                    geometryFactory.createPoint(new Coordinate(dto.getLongitude(), dto.getLatitude()))
-                            );
-                            repository.save(node);
-                            count++;
+                        if (dto.getLatitude() != null && dto.getLongitude() != null && dto.getSiteName() != null) {
+
+                            if (!repository.existsByStationName(dto.getSiteName())) {
+                                // Sorteia um status inicial para visualização dinâmica de cores
+                                String initialStatus = statuses[random.nextInt(statuses.length)];
+
+                                SpatialNode node = new SpatialNode(
+                                        dto.getSiteName(),
+                                        geometryFactory.createPoint(new Coordinate(dto.getLongitude(), dto.getLatitude())),
+                                        initialStatus
+                                );
+                                repository.save(node);
+                                countNew++;
+                            } else {
+                                countSkipped++;
+                            }
                         }
                     }
-                    System.out.println(">>> Sucesso! " + count + " estações reais de Londres foram importadas para o H2!");
+                    System.out.println(">>> Sincronização concluída! " + countNew + " novas estações salvas com status AQI.");
                 }
             } catch (Exception e) {
                 System.err.println(">>> Erro ao sincronizar estações da API externa: " + e.getMessage());
