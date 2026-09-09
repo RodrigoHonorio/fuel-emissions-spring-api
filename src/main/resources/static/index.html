@@ -260,9 +260,9 @@
         preferCanvas: true
     }).setView([activeLat, activeLng], 11);
 
-    // Pane exclusiva para renderizar as fronteiras com z-index elevado
+    // Pane exclusiva para renderizar as fronteiras acima do mapa escuro (zIndex: 450)
     map.createPane('boroughsPane');
-    map.getPane('boroughsPane').style.zIndex = 400;
+    map.getPane('boroughsPane').style.zIndex = 450;
 
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
@@ -291,69 +291,94 @@
     });
     window.addEventListener('resize', () => { map.invalidateSize(); });
 
-    // CARREGAMENTO DAS FRONTEIRAS COM LINHAS AMARELAS DE ALTO CONTRASTE
+    // CARREGAMENTO MULTI-CDN COM VALIDAÇÃO WGS84 (GRAUS DECIMAIS)
     async function loadLondonBoroughs() {
-        const geojsonSources = [
-            'https://cdn.jsdelivr.net/gh/glynnbird/london-boroughs@master/london_boroughs.json',
-            'https://cdn.jsdelivr.net/gh/martinjc/UK-GeoJSON@master/json/administrative/eng/london_boroughs.json',
-            'https://raw.githubusercontent.com/glynnbird/london-boroughs/master/london_boroughs.json'
+        const geojsonUrls = [
+            'https://cdn.jsdelivr.net/gh/westminsterDataStudio/open_data@main/boundary_files/boroughs_london.geojson',
+            'https://cdn.jsdelivr.net/gh/microsoft/fabric-samples@main/docs-samples/real-time-intelligence/london-boroughs.geojson',
+            'https://raw.githubusercontent.com/westminsterDataStudio/open_data/main/boundary_files/boroughs_london.geojson'
         ];
 
         let geojson = null;
 
-        for (const url of geojsonSources) {
+        for (const url of geojsonUrls) {
             try {
+                console.log("📡 Buscando GeoJSON de:", url);
                 const response = await fetch(url);
                 if (response.ok) {
-                    geojson = await response.json();
-                    break;
+                    const data = await response.json();
+
+                    // Valida se os dados estão em coordenadas WGS84 (graus decimais lat/lng)
+                    if (isValidWgs84(data)) {
+                        geojson = data;
+                        console.log("✅ GeoJSON WGS84 válido carregado!");
+                        break;
+                    } else {
+                        console.warn("⚠️ O arquivo contém coordenadas BNG (metros). Tentando outra CDN...");
+                    }
                 }
             } catch (err) {
-                console.warn("Tentando fonte alternativa de GeoJSON...");
+                console.warn("⚠️ Tentando próxima CDN de distritos...", err);
             }
         }
 
-        if (geojson) {
-            L.geoJSON(geojson, {
-                pane: 'boroughsPane',
-                style: function () {
-                    return {
-                        color: '#FFFF00',        // Amarelo Neon Vibrante
-                        weight: 2.5,             // Espessura sólida visível
-                        opacity: 0.9,            // 90% de opacidade no traço
-                        fillColor: '#FFFF00',
-                        fillOpacity: 0.08        // Sutil preenchimento transparente
-                    };
-                },
-                onEachFeature: function (feature, layer) {
-                    const boroughName = feature.properties ?
-                        (feature.properties.name || feature.properties.NAME || feature.properties.BOROUGH || feature.properties.GSS_NAME || "London Borough") : "London Borough";
-
-                    layer.bindTooltip(boroughName, {
-                        sticky: true,
-                        className: 'borough-tooltip'
-                    });
-
-                    layer.on('mouseover', function () {
-                        this.setStyle({
-                            color: '#FFFFFF',    // Destaca em Branco ao passar o mouse
-                            weight: 4,
-                            fillOpacity: 0.25
-                        });
-                    });
-
-                    layer.on('mouseout', function () {
-                        this.setStyle({
-                            color: '#FFFF00',    // Retorna ao Amarelo
-                            weight: 2.5,
-                            fillOpacity: 0.08
-                        });
-                    });
-                }
-            }).addTo(map);
-        } else {
-            console.error("Erro ao carregar o GeoJSON dos distritos.");
+        if (!geojson) {
+            console.error("❌ Erro ao carregar o GeoJSON dos distritos em todas as fontes.");
+            return;
         }
+
+        const boroughLayer = L.geoJSON(geojson, {
+            pane: 'boroughsPane',
+            style: function () {
+                return {
+                    color: '#FFFF00',        // Amarelo Neon Vibrante
+                    weight: 3,               // Espessura bem visível
+                    opacity: 1.0,            // Linha sólida
+                    fillColor: '#FFFF00',
+                    fillOpacity: 0.12        // Sutil preenchimento transparente
+                };
+            },
+            onEachFeature: function (feature, layer) {
+                const props = feature.properties || {};
+                const boroughName = props.NAME || props.name || props.BOROUGH || props.GSS_NAME || props.EER13NM || "London Borough";
+
+                layer.bindTooltip(boroughName, {
+                    sticky: true,
+                    className: 'borough-tooltip'
+                });
+
+                layer.on('mouseover', function (e) {
+                    e.target.setStyle({
+                        color: '#FFFFFF',    // Destaca em Branco Neon ao passar o mouse
+                        weight: 4,
+                        fillOpacity: 0.3
+                    });
+                });
+
+                layer.on('mouseout', function (e) {
+                    boroughLayer.resetStyle(e.target);
+                });
+            }
+        }).addTo(map);
+
+        console.log("🗺️ Fronteiras dos distritos renderizadas com sucesso no mapa!");
+    }
+
+    // Auxiliar para verificar se o GeoJSON usa Lat/Lng WGS84 (e não metros BNG)
+    function isValidWgs84(geojson) {
+        try {
+            if (!geojson || !geojson.features || geojson.features.length === 0) return false;
+            const coord = getFirstCoord(geojson.features[0].geometry.coordinates);
+            return coord && Math.abs(coord[0]) <= 180 && Math.abs(coord[1]) <= 90;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function getFirstCoord(coords) {
+        if (!Array.isArray(coords)) return null;
+        if (typeof coords[0] === 'number') return coords;
+        return getFirstCoord(coords[0]);
     }
 
     async function loadSpatialNodes() {
