@@ -1,77 +1,131 @@
 package uk.org.spire.emissionsCalculator.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import org.locationtech.jts.geom.Point;
 
 @Entity
-@Table(name = "gas_stations", indexes = {
-        @Index(name = "idx_gas_stations_osm_id", columnList = "osm_id", unique = true)
-})
+@Table(name = "gas_stations")
 public class GasStation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "osm_id", nullable = false, unique = true)
+    @Column(name = "osm_id")
     private Long osmId;
 
-    @Column(name = "name")
     private String name;
-
-    @Column(name = "operator")
     private String operator;
-
-    @Column(name = "latitude", nullable = false)
-    private Double latitude;
-
-    @Column(name = "longitude", nullable = false)
-    private Double longitude;
+    private double latitude;
+    private double longitude;
 
     @Column(name = "number_of_pumps")
-    private Integer numberOfPumps = 4;
+    private Integer numberOfPumps;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "daily_throughput")
+    private Double dailyThroughput;
 
-    public GasStation() {}
+    @Column(columnDefinition = "geometry(Point,4326)")
+    private Point location;
 
-    public GasStation(Long osmId, String name, String operator, Double latitude, Double longitude) {
+    public GasStation() {
+    }
+
+    public GasStation(Long osmId, String name, String operator, double latitude, double longitude) {
         this.osmId = osmId;
-        this.name = (name != null && !name.isBlank()) ? name : "Posto de Combustível";
-        this.operator = (operator != null && !operator.isBlank()) ? operator : "Independente";
+        this.name = name;
+        this.operator = operator;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.updatedAt = LocalDateTime.now();
     }
 
-    @PrePersist
-    @PreUpdate
-    public void updateTimestamp() {
-        this.updatedAt = LocalDateTime.now();
+    public GasStation(Long id, String name, double latitude, double longitude, Integer numberOfPumps, Double dailyThroughput) {
+        this.id = id;
+        this.name = name;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.numberOfPumps = numberOfPumps;
+        this.dailyThroughput = dailyThroughput;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getOsmId() { return osmId; }
-    public void setOsmId(Long osmId) { this.osmId = osmId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public Long getOsmId() {
+        return osmId;
+    }
 
-    public String getOperator() { return operator; }
-    public void setOperator(String operator) { this.operator = operator; }
+    public void setOsmId(Long osmId) {
+        this.osmId = osmId;
+    }
 
-    public Double getLatitude() { return latitude; }
-    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public String getName() {
+        return name;
+    }
 
-    public Double getLongitude() { return longitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public Integer getNumberOfPumps() { return numberOfPumps; }
-    public void setNumberOfPumps(Integer numberOfPumps) { this.numberOfPumps = numberOfPumps; }
+    public String getOperator() {
+        return operator;
+    }
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setOperator(String operator) {
+        this.operator = operator;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public Integer getNumberOfPumps() {
+        return numberOfPumps;
+    }
+
+    public void setNumberOfPumps(Integer numberOfPumps) {
+        this.numberOfPumps = numberOfPumps;
+    }
+
+    // Métodos alias para compatibilidade com DTOs e serviços
+    public Integer getPumpCount() {
+        return numberOfPumps;
+    }
+
+    public void setPumpCount(Integer pumpCount) {
+        this.numberOfPumps = pumpCount;
+    }
+
+    public Double getDailyThroughput() {
+        return dailyThroughput;
+    }
+
+    public void setDailyThroughput(Double dailyThroughput) {
+        this.dailyThroughput = dailyThroughput;
+    }
+
+    public Point getLocation() {
+        return location;
+    }
+
+    public void setLocation(Point location) {
+        this.location = location;
+    }
 }

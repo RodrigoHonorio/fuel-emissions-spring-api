@@ -1,116 +1,91 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S.P.I.R.E. - Dispersion & Heatmap</title>
+    <title>Dispersão de COV & Plumas Atmosféricas - Londres</title>
 
-    <!-- Leaflet CSS & MarkerCluster CSS -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-    <style>
-        * { box-sizing: border-box; }
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        #app-container {
-            width: 100vw; height: 100vh;
-            display: flex; flex-direction: column;
-        }
-        header {
-            background-color: #1a73e8; color: white;
-            padding: 10px 20px; flex: 0 0 50px;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        header h1 { margin: 0; font-size: 18px; font-weight: 600; }
-        #controls-bar {
-            background: #ffffff; padding: 8px 20px; flex: 0 0 55px;
-            display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #ddd;
-        }
-        .control-group { display: flex; align-items: center; gap: 6px; }
-        .control-group span { font-weight: bold; color: #333; font-size: 13px; }
-        .filter-btn {
-            background-color: #f0f0f0; border: 1px solid #ccc;
-            padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
-            transition: all 0.2s ease-in-out;
-        }
-        .filter-btn.active { background-color: #1a73e8; color: white; border-color: #1a73e8; }
-        #map {
-            flex: 1;
-            width: 100%;
-            background-color: #e5e3df;
-        }
-    </style>
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Estilos Personalizados -->
+    <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-<div id="app-container">
-    <header>
-        <h1>S.P.I.R.E. - London Emissions & Plume Simulation</h1>
-    </header>
+<!-- Container do Mapa Leaflet -->
+<div id="map"></div>
 
-    <div id="controls-bar">
-        <div class="control-group">
-            <span>Exibir:</span>
-            <button class="filter-btn active" data-layer="both" onclick="setLayerVisibility('both')">Ambos</button>
-            <button class="filter-btn" data-layer="stations" onclick="setLayerVisibility('stations')">Postos</button>
-            <button class="filter-btn" data-layer="environment" onclick="setLayerVisibility('environment')">Estações</button>
-        </div>
-        <div class="control-group">
-            <span>Combustível:</span>
-            <button class="filter-btn active" data-fuel="both" onclick="setFuelType('both')">Ambos</button>
-            <button class="filter-btn" data-fuel="petrol" onclick="setFuelType('petrol')">Gasolina</button>
-            <button class="filter-btn" data-fuel="diesel" onclick="setFuelType('diesel')">Diesel</button>
-        </div>
+<!-- Painel Flutuante de Controlo Meteorológico e Parâmetros de Dispersão -->
+<div id="control-panel" class="leaflet-bar">
+    <h3><i class="fa-solid fa-wind"></i> Dispersão de COV / VOCs</h3>
+
+    <div class="control-group">
+        <label for="tempInput">Temperatura Ambiente: <span id="tempValue">20</span>°C</label>
+        <input type="range" id="tempInput" min="0" max="40" value="20" step="1">
     </div>
 
-    <!-- Container do Mapa -->
-    <div id="map"></div>
+    <div class="control-group">
+        <label for="windSpeedInput">Velocidade do Vento: <span id="windSpeedValue">3.5</span> m/s</label>
+        <input type="range" id="windSpeedInput" min="0.5" max="15.0" value="3.5" step="0.5">
+    </div>
+
+    <div class="control-group">
+        <label for="windDirInput">Direção do Vento (Proveniência): <span id="windDirValue">240</span>°</label>
+        <input type="range" id="windDirInput" min="0" max="360" value="240" step="5">
+    </div>
+
+    <div class="control-group">
+        <label for="fuelTypeSelect">Combustível Considerado:</label>
+        <select id="fuelTypeSelect">
+            <option value="both" selected>Gasolina & Diesel (Mix de Posto)</option>
+            <option value="gasoline">Apenas Gasolina (Alta Volatilidade)</option>
+            <option value="diesel">Apenas Diesel</option>
+        </select>
+    </div>
+
+    <hr>
+
+    <h4><i class="fa-solid fa-layer-group"></i> Camadas do Mapa</h4>
+    <div class="checkbox-group">
+        <label><input type="checkbox" id="toggleHeatmap" checked> Heatmap Acumulado (Superposição)</label>
+        <label><input type="checkbox" id="togglePlumes" checked> Vetores de Pluma Individual</label>
+        <label><input type="checkbox" id="toggleBorders" checked> Fronteiras dos Distritos de Londres</label>
+        <label><input type="checkbox" id="toggleStations" checked> Marcadores dos Postos</label>
+    </div>
+
+    <button id="btnRecalculate" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Recalcular Dispersão</button>
 </div>
 
-<!-- 1. Leaflet JS e MarkerCluster -->
+<!-- Legenda de Intensidade da Poluição de COV -->
+<div id="legend-panel" class="leaflet-bar">
+    <h4>Concentração de COV (µg/m³)</h4>
+    <div class="gradient-bar"></div>
+    <div class="legend-labels">
+        <span>Baixa (&lt;5)</span>
+        <span>Média (25)</span>
+        <span>Alta (&gt;50)</span>
+    </div>
+</div>
+
+<!-- 1. Bibliotecas Externas: Leaflet e Plugin Leaflet Heat (Via cdnjs fiável) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 
-<!-- 2. Inicialização do Mapa Base com a tua API Key -->
-<script>
-    console.log("🟢 Inicializando Mapa Base com CARTO API Key...");
+<!-- 2. Inicialização Base do Mapa -->
+<script src="js/map-init.js"></script>
 
-    window.map = L.map('map').setView([51.5074, -0.1278], 12);
+<!-- 3. Scripts Antigos do Projeto -->
+<script src="js/london-borders.js"></script>
+<script src="js/stations.js"></script>
+<script src="js/gas-stations.js"></script>
 
-    // Adicionada a tua chave de API no final da URL
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_3sdq_1_9bb00292c4730146f73e99ac', {
-        maxZoom: 20,
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(window.map);
-
-    setTimeout(() => { window.map.invalidateSize(); }, 500);
-
-    function setLayerVisibility(layer) {
-        document.querySelectorAll('[data-layer]').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-layer') === layer);
-        });
-        if (typeof window.toggleGasStationsLayer === 'function') window.toggleGasStationsLayer(layer);
-        if (typeof window.toggleEnvironmentLayer === 'function') window.toggleEnvironmentLayer(layer);
-    }
-
-    function setFuelType(type) {
-        document.querySelectorAll('[data-fuel]').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-fuel') === type);
-        });
-        if (typeof window.reloadStationsWithCurrentFuel === 'function') window.reloadStationsWithCurrentFuel(type);
-    }
-</script>
-
-<!-- 3. Módulos Independentes -->
-<script src="gas-stations.js"></script>
-<script src="stations.js"></script>
-<script src="london-borders.js"></script>
+<!-- 4. Módulos de Cálculo e Visualização de Plumas de COV -->
+<script src="js/voc-heatmap.js"></script>
+<script src="js/weather-controls.js"></script>
 
 </body>
 </html>
