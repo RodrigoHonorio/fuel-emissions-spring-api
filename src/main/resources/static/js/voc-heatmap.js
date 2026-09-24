@@ -1,24 +1,15 @@
 /**
- * Módulo de Renderização do Heatmap Somado e Vetores de Pluma de COV
+ * Módulo de Renderização do Heatmap (Manchas de Poluição de COV)
  */
 let vocHeatmapLayer = null;
-let plumeGroup = L.layerGroup();
-
-document.addEventListener('DOMContentLoaded', () => {
-    if (typeof map !== 'undefined') {
-        plumeGroup.addTo(map);
-    }
-});
 
 function fetchAndRenderVocData(params) {
-    console.log("🔄 A solicitar dados de COV com os parâmetros:", params);
-
     const query = new URLSearchParams({
         temp: params.temp,
         windSpeed: params.windSpeed,
         windDirection: params.windDirection,
         fuelType: params.fuelType,
-        humidity: 60.0,
+        humidity: params.humidity || 60.0,
         pressure: 1013.0,
         solarRad: 400.0
     }).toString();
@@ -29,9 +20,8 @@ function fetchAndRenderVocData(params) {
             return response.json();
         })
         .then(data => {
-            console.log("✅ Dados recebidos do backend:", data);
+            // Renderiza APENAS as manchas de poluição
             renderHeatmap(data.heatmapPoints);
-            renderPlumes(data.plumeVectors, data.windDirection);
         })
         .catch(error => {
             console.error('❌ Erro ao carregar os dados de COV:', error);
@@ -40,19 +30,15 @@ function fetchAndRenderVocData(params) {
 
 function renderHeatmap(points) {
     if (vocHeatmapLayer) {
-        map.removeLayer(vocHeatmapLayer);
+        window.map.removeLayer(vocHeatmapLayer);
     }
 
-    const isVisible = document.getElementById('toggleHeatmap').checked;
-    if (!isVisible || !points || points.length === 0) {
-        console.warn("⚠️ Nenhum ponto de heatmap para renderizar ou camada desativada.");
+    const toggle = document.getElementById('toggleHeatmap');
+    if (!toggle || !toggle.checked || !points || points.length === 0) {
         return;
     }
 
-    if (typeof L.heatLayer !== 'function') {
-        console.error("❌ Erro crítico: L.heatLayer não está disponível. O script leaflet-heat.js precisa de carregar antes.");
-        return;
-    }
+    if (typeof L.heatLayer !== 'function') return;
 
     const heatData = points.map(p => [p.lat, p.lng, p.intensity]);
 
@@ -70,34 +56,5 @@ function renderHeatmap(points) {
         }
     });
 
-    vocHeatmapLayer.addTo(map);
-}
-
-function renderPlumes(plumes, windDirection) {
-    plumeGroup.clearLayers();
-
-    const isVisible = document.getElementById('togglePlumes').checked;
-    if (!isVisible || !plumes || plumes.length === 0) return;
-
-    plumes.forEach(plume => {
-        const line = L.polyline(
-            [[plume.originLat, plume.originLng], [plume.endLat, plume.endLng]],
-            {
-                color: '#e74c3c',
-                weight: 2,
-                opacity: 0.85,
-                dashArray: '6, 6'
-            }
-        );
-
-        line.bindPopup(`
-            <div style="font-size:12px;">
-                <b>📍 Posto:</b> ${plume.stationName}<br>
-                <b>💨 Taxa de Emissão:</b> ${plume.vocKgPerDay} kg/dia<br>
-                <b>🧭 Direção do Vento:</b> ${windDirection}°
-            </div>
-        `);
-
-        plumeGroup.addLayer(line);
-    });
+    vocHeatmapLayer.addTo(window.map);
 }

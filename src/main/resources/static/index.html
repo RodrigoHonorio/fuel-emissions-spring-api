@@ -8,6 +8,10 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
+    <!-- MarkerCluster CSS (ESSENCIAL para as Estações e Postos aparecerem) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
     <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
@@ -23,22 +27,41 @@
 <div id="control-panel" class="leaflet-bar">
     <h3><i class="fa-solid fa-wind"></i> Dispersão de COV / VOCs</h3>
 
-    <div class="control-group">
-        <label for="tempInput">Temperatura Ambiente: <span id="tempValue">20</span>°C</label>
-        <input type="range" id="tempInput" min="0" max="40" value="20" step="1">
+    <!-- Painel de Meteorologia em Tempo Real (Rosa dos Ventos) -->
+    <div class="weather-panel">
+        <div class="compass-wrapper">
+            <div class="compass">
+                <span class="compass-dir n">N</span>
+                <span class="compass-dir e">E</span>
+                <span class="compass-dir s">S</span>
+                <span class="compass-dir w">W</span>
+                <div class="compass-arrow" id="compassArrow">
+                    <i class="fa-solid fa-arrow-up"></i>
+                </div>
+                <div class="compass-center-value">
+                    <span id="wt-wind-speed">--</span><br>
+                    <small>m/s</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="weather-grid">
+            <div class="w-item" title="Temperatura">
+                <i class="fa-solid fa-temperature-half" style="color:#ff6b6b"></i> <span id="wt-temp">--°C</span>
+            </div>
+            <div class="w-item" title="Direção do Vento">
+                <i class="fa-regular fa-compass" style="color:#4facfe"></i> <span id="wt-dir">--°</span>
+            </div>
+            <div class="w-item" title="Humidade">
+                <i class="fa-solid fa-droplet" style="color:#00f2fe"></i> <span id="wt-hum">--%</span>
+            </div>
+            <div class="w-item" title="Índice UV">
+                <i class="fa-solid fa-sun" style="color:#fdda0d"></i> <span id="wt-uv">--</span>
+            </div>
+        </div>
     </div>
 
-    <div class="control-group">
-        <label for="windSpeedInput">Velocidade do Vento: <span id="windSpeedValue">3.5</span> m/s</label>
-        <input type="range" id="windSpeedInput" min="0.5" max="15.0" value="3.5" step="0.5">
-    </div>
-
-    <div class="control-group">
-        <label for="windDirInput">Direção do Vento (Proveniência): <span id="windDirValue">240</span>°</label>
-        <input type="range" id="windDirInput" min="0" max="360" value="240" step="5">
-    </div>
-
-    <div class="control-group">
+    <div class="control-group" style="margin-top: 15px;">
         <label for="fuelTypeSelect">Combustível Considerado:</label>
         <select id="fuelTypeSelect">
             <option value="both" selected>Gasolina & Diesel (Mix de Posto)</option>
@@ -51,10 +74,9 @@
 
     <h4><i class="fa-solid fa-layer-group"></i> Camadas do Mapa</h4>
     <div class="checkbox-group">
-        <label><input type="checkbox" id="toggleHeatmap" checked> Heatmap Acumulado (Superposição)</label>
-        <label><input type="checkbox" id="togglePlumes" checked> Vetores de Pluma Individual</label>
+        <label><input type="checkbox" id="toggleHeatmap" checked> Manchas de Poluição (Heatmap)</label>
         <label><input type="checkbox" id="toggleBorders" checked> Fronteiras dos Distritos de Londres</label>
-        <label><input type="checkbox" id="toggleStations" checked> Marcadores dos Postos</label>
+        <label><input type="checkbox" id="toggleStations" checked> Marcadores dos Postos e Estações</label>
     </div>
 
     <button id="btnRecalculate" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Recalcular Dispersão</button>
@@ -71,19 +93,17 @@
     </div>
 </div>
 
-<!-- 1. Bibliotecas Externas: Leaflet e Plugin Leaflet Heat (Via cdnjs fiável) -->
+<!-- Bibliotecas Externas -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- O script MarkerCluster abaixo resolve o problema de desaparecerem -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 
-<!-- 2. Inicialização Base do Mapa -->
+<!-- Scripts do Projeto -->
 <script src="js/map-init.js"></script>
-
-<!-- 3. Scripts Antigos do Projeto -->
 <script src="js/london-borders.js"></script>
 <script src="js/stations.js"></script>
 <script src="js/gas-stations.js"></script>
-
-<!-- 4. Módulos de Cálculo e Visualização de Plumas de COV -->
 <script src="js/voc-heatmap.js"></script>
 <script src="js/weather-controls.js"></script>
 
