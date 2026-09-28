@@ -8,7 +8,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- MarkerCluster CSS (ESSENCIAL para as Estações e Postos aparecerem) -->
+    <!-- MarkerCluster CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
@@ -75,11 +75,9 @@
     <h4><i class="fa-solid fa-layer-group"></i> Camadas do Mapa</h4>
     <div class="checkbox-group">
         <label><input type="checkbox" id="toggleHeatmap" checked> Manchas de Poluição (Heatmap)</label>
-        <label><input type="checkbox" id="toggleBorders" checked> Fronteiras dos Distritos de Londres</label>
-        <label><input type="checkbox" id="toggleStations" checked> Marcadores dos Postos e Estações</label>
+        <label><input type="checkbox" id="toggleGasStations" checked> Postos de Combustível (⛽)</label>
+        <label><input type="checkbox" id="toggleEnvStations" checked> Estações Ambientais (🍃)</label>
     </div>
-
-    <button id="btnRecalculate" class="btn-primary"><i class="fa-solid fa-rotate-right"></i> Recalcular Dispersão</button>
 </div>
 
 <!-- Legenda de Intensidade da Poluição de COV -->
@@ -95,7 +93,6 @@
 
 <!-- Bibliotecas Externas -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<!-- O script MarkerCluster abaixo resolve o problema de desaparecerem -->
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
 

@@ -2,12 +2,20 @@
 // S.P.I.R.E. - Módulo de Postos de Combustível (gas-stations.js)
 // =================================================================
 
-const gasStationsLayer = L.layerGroup().addTo(window.map);
+const gasStationsLayer = L.layerGroup();
 let gasStationsData = [];
 let currentSelectedFuel = 'both';
 
-// Cria o PINO com o ícone da Bomba de Combustível (⛽)
-function createGasStationPin(colorHex) {
+// Aguarda o carregamento do DOM/Mapa para adicionar a camada e carregar os dados
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.map && !window.map.hasLayer(gasStationsLayer)) {
+        window.map.addLayer(gasStationsLayer);
+    }
+    loadGasStations('both');
+});
+
+// Cria o PINO AZUL com o ícone da Bomba de Combustível (⛽)
+function createGasStationPin(colorHex = '#1E88E5') {
     const svgPin = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="30" height="42">
             <path fill="${colorHex}" stroke="#FFFFFF" stroke-width="1.8" d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z"/>
@@ -23,8 +31,6 @@ function createGasStationPin(colorHex) {
         popupAnchor: [0, -38]
     });
 }
-
-loadGasStations('both');
 
 function loadGasStations(fuelType) {
     currentSelectedFuel = fuelType;
@@ -61,7 +67,7 @@ function renderGasStationsOnMap() {
     gasStationsLayer.clearLayers();
 
     let fuelLabel = "Ambos (Média)";
-    if (currentSelectedFuel === 'petrol') fuelLabel = "Gasolina (Petrol)";
+    if (currentSelectedFuel === 'petrol' || currentSelectedFuel === 'gasoline') fuelLabel = "Gasolina";
     if (currentSelectedFuel === 'diesel') fuelLabel = "Diesel";
 
     let countRendered = 0;
@@ -69,20 +75,14 @@ function renderGasStationsOnMap() {
     gasStationsData.forEach(station => {
         if (isNaN(station.lat) || isNaN(station.lng)) return;
 
-        // Cor do pino consoante a emissão estimada de COV
-        let pinColor = '#28a745'; // Verde
-        if (station.vocEmissionKg > 50) pinColor = '#ffc107';  // Amarelo
-        if (station.vocEmissionKg > 150) pinColor = '#fd7e14'; // Laranja
-        if (station.vocEmissionKg > 300) pinColor = '#dc3545'; // Vermelho
-
-        const pinIcon = createGasStationPin(pinColor);
+        const pinIcon = createGasStationPin('#1E88E5');
         const marker = L.marker([station.lat, station.lng], { icon: pinIcon });
 
         const popupContent = `
             <div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; min-width: 210px;">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                     <span style="font-size: 16px;">⛽</span>
-                    <b style="font-size: 14px; color: #1a73e8;">${station.name}</b>
+                    <b style="font-size: 14px; color: #1E88E5;">${station.name}</b>
                 </div>
                 <div style="color: #555; font-size: 12px; margin-bottom: 6px;">
                     <b>Operador:</b> ${station.operator} &nbsp;|&nbsp; <b>Bombas:</b> ${station.pumps}
@@ -104,11 +104,18 @@ function renderGasStationsOnMap() {
     console.log(`📍 ${countRendered} pinos de postos ⛽ desenhados no mapa.`);
 }
 
-window.toggleGasStationsLayer = function(layerType) {
-    if (layerType === 'stations' || layerType === 'both') {
-        if (!window.map.hasLayer(gasStationsLayer)) window.map.addLayer(gasStationsLayer);
+// Alterna a exibição dos postos de combustível no mapa de forma segura
+window.toggleGasStationsLayer = function(show) {
+    if (!window.map) return;
+    const shouldShow = (show === true || show === 'stations' || show === 'both');
+    if (shouldShow) {
+        if (!window.map.hasLayer(gasStationsLayer)) {
+            window.map.addLayer(gasStationsLayer);
+        }
     } else {
-        if (window.map.hasLayer(gasStationsLayer)) window.map.removeLayer(gasStationsLayer);
+        if (window.map.hasLayer(gasStationsLayer)) {
+            window.map.removeLayer(gasStationsLayer);
+        }
     }
 };
 

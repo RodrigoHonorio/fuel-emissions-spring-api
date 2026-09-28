@@ -7,10 +7,11 @@ const map = L.map('map', {
     zoomControl: true
 });
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
+// Esri World Light Gray Canvas (Limpo, elegante e 100% grátis sem chave)
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
 }).addTo(map);
 
-// ESSENCIAL: Exportar o mapa para que stations.js e gas-stations.js consigam desenhar os ícones nele
+// ESSENCIAL: Exportar o mapa para que os outros scripts consigam aceder
 window.map = map;

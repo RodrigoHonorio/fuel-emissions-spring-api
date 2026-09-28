@@ -4,14 +4,21 @@
 
 const LONDON_BOUNDS = { minLat: 51.28, maxLat: 51.69, minLng: -0.51, maxLng: 0.33 };
 
+// Cria o grupo de clusters sem adicionar ao mapa imediatamente
 const stationsClusterGroup = L.markerClusterGroup({
     chunkedLoading: true,
     maxClusterRadius: 40,
     spiderfyOnMaxZoom: true,
     showCoverageOnHover: false
-}).addTo(window.map);
+});
 
-loadSpatialNodes();
+// Aguarda o carregamento do DOM/Mapa para adicionar a camada e carregar os dados
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.map && !window.map.hasLayer(stationsClusterGroup)) {
+        window.map.addLayer(stationsClusterGroup);
+    }
+    loadSpatialNodes();
+});
 
 function createPinIcon(colorHex) {
     return L.divIcon({
@@ -97,10 +104,17 @@ function renderStationsOnMap(nodes) {
     stationsClusterGroup.addLayers(markersToAdd);
 }
 
-window.toggleEnvironmentLayer = function(layerType) {
-    if (layerType === 'environment' || layerType === 'both') {
-        if (!window.map.hasLayer(stationsClusterGroup)) window.map.addLayer(stationsClusterGroup);
+// Alterna a exibição das estações ambientais no mapa de forma segura
+window.toggleEnvironmentLayer = function(show) {
+    if (!window.map) return;
+    const shouldShow = (show === true || show === 'environment' || show === 'both');
+    if (shouldShow) {
+        if (!window.map.hasLayer(stationsClusterGroup)) {
+            window.map.addLayer(stationsClusterGroup);
+        }
     } else {
-        if (window.map.hasLayer(stationsClusterGroup)) window.map.removeLayer(stationsClusterGroup);
+        if (window.map.hasLayer(stationsClusterGroup)) {
+            window.map.removeLayer(stationsClusterGroup);
+        }
     }
 };

@@ -1,12 +1,12 @@
 /**
- * Módulo de Eventos dos Controlos Meteorológicos
+ * Módulo de Eventos dos Controlos Meteorológicos e Camadas
  */
 document.addEventListener('DOMContentLoaded', () => {
 
     const fuelTypeSelect = document.getElementById('fuelTypeSelect');
-    const btnRecalculate = document.getElementById('btnRecalculate');
     const toggleHeatmap = document.getElementById('toggleHeatmap');
-    const toggleStations = document.getElementById('toggleStations');
+    const toggleGasStations = document.getElementById('toggleGasStations');
+    const toggleEnvStations = document.getElementById('toggleEnvStations');
 
     // Elementos da Rosa dos Ventos
     const compassArrow = document.getElementById('compassArrow');
@@ -63,24 +63,48 @@ document.addEventListener('DOMContentLoaded', () => {
             windSpeed: currentWeather.windSpeed,
             windDirection: currentWeather.windDirection,
             humidity: currentWeather.humidity,
-            fuelType: fuelTypeSelect.value
+            fuelType: fuelTypeSelect ? fuelTypeSelect.value : 'both'
         };
-        fetchAndRenderVocData(params);
+        if (typeof fetchAndRenderVocData === 'function') {
+            fetchAndRenderVocData(params);
+        }
     }
 
-    // Liga os Eventos
-    if (btnRecalculate) btnRecalculate.addEventListener('click', triggerUpdate);
-    if (toggleHeatmap) toggleHeatmap.addEventListener('change', triggerUpdate);
-    if (fuelTypeSelect) fuelTypeSelect.addEventListener('change', triggerUpdate);
-
-    // Controlo da Checkbox para ligar/desligar Postos
-    if (toggleStations) {
-        toggleStations.addEventListener('change', (e) => {
-            if (typeof window.toggleGasStationsLayer === 'function') {
-                window.toggleGasStationsLayer(e.target.checked ? 'both' : 'none');
+    // Atualização automática ao trocar de combustível
+    if (fuelTypeSelect) {
+        fuelTypeSelect.addEventListener('change', () => {
+            triggerUpdate();
+            if (typeof window.reloadStationsWithCurrentFuel === 'function') {
+                window.reloadStationsWithCurrentFuel(fuelTypeSelect.value);
             }
+        });
+    }
+
+    // Alternar Heatmap de Poluição
+    if (toggleHeatmap) {
+        toggleHeatmap.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                triggerUpdate();
+            } else if (typeof window.clearVocHeatmap === 'function') {
+                window.clearVocHeatmap();
+            }
+        });
+    }
+
+    // Controlo Independente dos Postos de Combustível (⛽)
+    if (toggleGasStations) {
+        toggleGasStations.addEventListener('change', (e) => {
+            if (typeof window.toggleGasStationsLayer === 'function') {
+                window.toggleGasStationsLayer(e.target.checked);
+            }
+        });
+    }
+
+    // Controlo Independente das Estações Ambientais (🍃)
+    if (toggleEnvStations) {
+        toggleEnvStations.addEventListener('change', (e) => {
             if (typeof window.toggleEnvironmentLayer === 'function') {
-                window.toggleEnvironmentLayer(e.target.checked ? 'both' : 'none');
+                window.toggleEnvironmentLayer(e.target.checked);
             }
         });
     }
