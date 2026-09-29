@@ -1,6 +1,8 @@
 package uk.org.spire.emissionsCalculator.service;
 
 import org.springframework.stereotype.Service;
+import uk.org.spire.emissionsCalculator.constant.EmissionSeverity;
+import uk.org.spire.emissionsCalculator.constant.SpireConstants;
 import uk.org.spire.emissionsCalculator.dto.GasStationDTO;
 import uk.org.spire.emissionsCalculator.model.GasStation;
 import uk.org.spire.emissionsCalculator.repository.GasStationRepository;
@@ -8,9 +10,14 @@ import uk.org.spire.emissionsCalculator.repository.GasStationRepository;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class GasStationService {
+
+    private static final int DEFAULT_NUMBER_OF_PUMPS = 4;
+    private static final String DEFAULT_STATION_NAME = "Posto de Combustível";
+    private static final String DEFAULT_OPERATOR = "Independente";
 
     private final GasStationRepository gasStationRepository;
 
@@ -22,24 +29,42 @@ public class GasStationService {
         List<GasStationDTO> dtoList = new ArrayList<>();
         List<GasStation> stations = gasStationRepository.findAll();
 
+        String fuelLabel = resolveFuelLabel(fuelType);
+
         for (GasStation station : stations) {
+            if (!SpireConstants.isWithinLondon(station.getLatitude(), station.getLongitude())) {
+                continue;
+            }
+
             int numberOfPumps = (station.getNumberOfPumps() != null && station.getNumberOfPumps() > 0)
                     ? station.getNumberOfPumps()
-                    : 4;
+                    : DEFAULT_NUMBER_OF_PUMPS;
 
             double vocEmission = calculateAdvancedVoc(numberOfPumps, temp, humidity, pressure, solarRadiation, fuelType);
 
             dtoList.add(new GasStationDTO(
-                    station.getName(),
-                    station.getOperator(),
+                    (station.getName() != null && !station.getName().isBlank()) ? station.getName() : DEFAULT_STATION_NAME,
+                    (station.getOperator() != null && !station.getOperator().isBlank()) ? station.getOperator() : DEFAULT_OPERATOR,
                     station.getLatitude(),
                     station.getLongitude(),
                     numberOfPumps,
-                    vocEmission
+                    vocEmission,
+                    String.format(Locale.UK, "%.2f kg/dia", vocEmission),
+                    EmissionSeverity.fromDailyVocKg(vocEmission),
+                    fuelLabel
             ));
         }
 
         return dtoList;
+    }
+
+    private String resolveFuelLabel(String fuelType) {
+        String type = (fuelType == null) ? "both" : fuelType.toLowerCase(Locale.UK);
+        return switch (type) {
+            case "petrol" -> "Gasolina (Petrol)";
+            case "diesel" -> "Diesel";
+            default -> "Ambos (Média)";
+        };
     }
 
     private double calculateAdvancedVoc(int pumps, double temp, double humidity, double pressure, double solarRadiation, String fuelType) {

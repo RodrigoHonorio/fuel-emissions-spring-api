@@ -2,8 +2,6 @@
 // S.P.I.R.E. - Módulo de Estações Ambientais (stations.js)
 // =================================================================
 
-const LONDON_BOUNDS = { minLat: 51.28, maxLat: 51.69, minLng: -0.51, maxLng: 0.33 };
-
 const stationsClusterGroup = L.markerClusterGroup({
     chunkedLoading: true,
     maxClusterRadius: 40,
@@ -48,44 +46,24 @@ function renderStationsOnMap(nodes) {
     const markersToAdd = [];
 
     nodes.forEach(node => {
-        const lat = parseFloat(node.latitude ?? node.lat);
-        const lng = parseFloat(node.longitude ?? node.lng);
-        const stationName = node.stationName ?? node.name ?? "Estação de Monitoramento";
-        const temp = node.ambientTemperatureCelsius ?? 17.2;
-        const windSpd = node.windSpeed ?? 3.2;
-        const windDir = node.windDirection ?? 180;
-        const aqi = String(node.aqiStatus ?? "LOW").toUpperCase();
-
-        if (isNaN(lat) || isNaN(lng) || lat < LONDON_BOUNDS.minLat || lat > LONDON_BOUNDS.maxLat || lng < LONDON_BOUNDS.minLng || lng > LONDON_BOUNDS.maxLng) return;
-
-        let pinColor = '#198754';
-        let textColor = '#ffffff';
-
-        if (aqi === 'HIGH' || aqi === 'POOR') {
-            pinColor = '#dc3545';
-        } else if (aqi === 'MODERATE') {
-            pinColor = '#ffc107';
-            textColor = '#000000';
-        }
-
-        const marker = L.marker([lat, lng], { icon: createPinIcon(pinColor) });
+        const marker = L.marker([node.latitude, node.longitude], { icon: createPinIcon(node.markerColour) });
 
         const popupContent = `
             <div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; min-width: 210px;">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                     <span style="font-size: 15px;">🍃</span>
-                    <b style="font-size: 14px; color: #198754;">${stationName}</b>
+                    <b style="font-size: 14px; color: #198754;">${node.stationName}</b>
                 </div>
                 <hr style="border: 0; border-top: 1px solid #eee; margin: 6px 0;">
                 <div style="margin-bottom: 6px;">
                     <b>Qualidade do Ar:</b>
-                    <span style="background-color: ${pinColor}; color: ${textColor}; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">
-                        ${aqi}
+                    <span style="background-color: ${node.markerColour}; color: ${node.textColour}; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">
+                        ${node.aqiStatus}
                     </span>
                 </div>
                 <div style="color: #444; font-size: 12px; line-height: 1.6;">
-                    🌡️ <b>Temperatura:</b> ${temp} °C<br>
-                    💨 <b>Vento:</b> ${windSpd} m/s (Direção: ${windDir}°)
+                    🌡️ <b>Temperatura:</b> ${node.ambientTemperatureCelsius} °C<br>
+                    💨 <b>Vento:</b> ${node.windSpeed} m/s (Direção: ${node.windDirection}°)
                 </div>
             </div>
         `;

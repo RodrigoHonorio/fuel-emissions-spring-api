@@ -4,7 +4,6 @@
 
 const gasStationsLayer = L.layerGroup().addTo(window.map);
 let gasStationsData = [];
-let currentSelectedFuel = 'both';
 
 // Cria o PINO com o ícone da Bomba de Combustível (⛽)
 function createGasStationPin(colorHex) {
@@ -27,7 +26,6 @@ function createGasStationPin(colorHex) {
 loadGasStations('both');
 
 function loadGasStations(fuelType) {
-    currentSelectedFuel = fuelType;
     const url = `/api/v1/gas-stations?fuelType=${fuelType}`;
     console.log(`🔍 A procurar postos na API: ${url}`);
 
@@ -42,14 +40,7 @@ function loadGasStations(fuelType) {
                 return;
             }
 
-            gasStationsData = data.map(item => ({
-                name: item.name || "Posto de Combustível",
-                operator: item.operator || "Independente",
-                lat: parseFloat(item.latitude),
-                lng: parseFloat(item.longitude),
-                pumps: item.numberOfPumps || 4,
-                vocEmissionKg: parseFloat(item.estimatedDailyVocKg || 0.0)
-            }));
+            gasStationsData = data;
 
             console.log(`✅ ${gasStationsData.length} postos recebidos com sucesso.`);
             renderGasStationsOnMap();
@@ -60,23 +51,11 @@ function loadGasStations(fuelType) {
 function renderGasStationsOnMap() {
     gasStationsLayer.clearLayers();
 
-    let fuelLabel = "Ambos (Média)";
-    if (currentSelectedFuel === 'petrol') fuelLabel = "Gasolina (Petrol)";
-    if (currentSelectedFuel === 'diesel') fuelLabel = "Diesel";
-
     let countRendered = 0;
 
     gasStationsData.forEach(station => {
-        if (isNaN(station.lat) || isNaN(station.lng)) return;
-
-        // Cor do pino consoante a emissão estimada de COV
-        let pinColor = '#28a745'; // Verde
-        if (station.vocEmissionKg > 50) pinColor = '#ffc107';  // Amarelo
-        if (station.vocEmissionKg > 150) pinColor = '#fd7e14'; // Laranja
-        if (station.vocEmissionKg > 300) pinColor = '#dc3545'; // Vermelho
-
-        const pinIcon = createGasStationPin(pinColor);
-        const marker = L.marker([station.lat, station.lng], { icon: pinIcon });
+        const pinIcon = createGasStationPin(station.markerColour);
+        const marker = L.marker([station.latitude, station.longitude], { icon: pinIcon });
 
         const popupContent = `
             <div style="font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; min-width: 210px;">
@@ -85,13 +64,13 @@ function renderGasStationsOnMap() {
                     <b style="font-size: 14px; color: #1a73e8;">${station.name}</b>
                 </div>
                 <div style="color: #555; font-size: 12px; margin-bottom: 6px;">
-                    <b>Operador:</b> ${station.operator} &nbsp;|&nbsp; <b>Bombas:</b> ${station.pumps}
+                    <b>Operador:</b> ${station.operator} &nbsp;|&nbsp; <b>Bombas:</b> ${station.numberOfPumps}
                 </div>
                 <hr style="border: 0; border-top: 1px solid #eee; margin: 6px 0;">
                 <div style="font-weight: bold; color: #333; margin-bottom: 4px; font-size: 12px;">📊 Estimativa de Emissão (S.P.I.R.E.):</div>
                 <div style="color: #444; font-size: 12px;">
-                    • <b>COV (Voláteis):</b> <span style="color: #dc3545; font-weight: bold;">${station.vocEmissionKg.toFixed(2)} kg/dia</span><br>
-                    • <b>Combustível Base:</b> ${fuelLabel}
+                    • <b>COV (Voláteis):</b> <span style="color: ${station.markerColour}; font-weight: bold;">${station.estimatedDailyVocLabel}</span> (${station.severityLabel})<br>
+                    • <b>Combustível Base:</b> ${station.fuelLabel}
                 </div>
             </div>
         `;

@@ -60,7 +60,7 @@ class EmissionsControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/emissions/calculate")
+        mockMvc.perform(post("/api/v1/emissions/calculate")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonRequest))
                 .andExpect(status().isCreated())
