@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import uk.org.spire.emissionsCalculator.dto.SpatialNodeResponse;
-import uk.org.spire.emissionsCalculator.repository.SpatialNodeRepository;
+import uk.org.spire.emissionsCalculator.service.SpatialNodeService;
 
 import java.util.List;
 
@@ -19,35 +19,26 @@ import java.util.List;
 @RequestMapping
 public class SpatialNodeController {
 
-    private final SpatialNodeRepository repository;
+    private final SpatialNodeService spatialNodeService;
 
     /**
      * Constructs the Spatial Node Controller.
      *
-     * @param repository The data access object for spatial nodes.
+     * @param spatialNodeService The service exposing spatial nodes ready for rendering.
      */
-    public SpatialNodeController(SpatialNodeRepository repository) {
-        this.repository = repository;
+    public SpatialNodeController(SpatialNodeService spatialNodeService) {
+        this.spatialNodeService = spatialNodeService;
     }
 
     /**
-     * Retrieves all registered spatial nodes.
+     * Retrieves the registered spatial nodes located within Greater London.
      * Mapped to support all route variations requested by the frontend.
      *
-     * @return A list of {@link SpatialNodeResponse} containing geographical coordinates and AQI status.
+     * @return A list of {@link SpatialNodeResponse} with coordinates, AQI classification,
+     * rendering colours and the current meteorological readings.
      */
     @GetMapping({"/api/v1/spatial-nodes", "/spatial-nodes", "/api/v1/spatial/nodes"})
     public ResponseEntity<List<SpatialNodeResponse>> getAllNodes() {
-        List<SpatialNodeResponse> responseList = repository.findAll().stream()
-                .map(node -> new SpatialNodeResponse(
-                        node.getId(),
-                        node.getStationName(),
-                        node.getCoordinates().getY(), // Y maps to Latitude
-                        node.getCoordinates().getX(), // X maps to Longitude
-                        node.getAqiStatus()           // AQI status for color-coding on map
-                ))
-                .toList();
-
-        return ResponseEntity.ok(responseList);
+        return ResponseEntity.ok(spatialNodeService.findAllLondonNodes());
     }
 }

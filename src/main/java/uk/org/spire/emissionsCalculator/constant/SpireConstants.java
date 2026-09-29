@@ -22,4 +22,17 @@ public final class SpireConstants {
      */
     public static final int WGS84_SRID = 4326;
 
+    /**
+     * Bounding box of Greater London used to discard nodes outside the area of study.
+     */
+    public static final double LONDON_MIN_LATITUDE = 51.28;
+    public static final double LONDON_MAX_LATITUDE = 51.69;
+    public static final double LONDON_MIN_LONGITUDE = -0.51;
+    public static final double LONDON_MAX_LONGITUDE = 0.33;
+
+    public static boolean isWithinLondon(double latitude, double longitude) {
+        return latitude >= LONDON_MIN_LATITUDE && latitude <= LONDON_MAX_LATITUDE
+                && longitude >= LONDON_MIN_LONGITUDE && longitude <= LONDON_MAX_LONGITUDE;
+    }
+
 }
