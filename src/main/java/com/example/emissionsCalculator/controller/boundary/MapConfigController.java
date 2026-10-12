@@ -1,6 +1,6 @@
 package com.example.emissionsCalculator.controller.boundary;
 
-import com.example.emissionsCalculator.service.boundary.enums.MapLayer;
+import com.example.emissionsCalculator.enums.boundary.MapLayer;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;

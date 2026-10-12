@@ -10,21 +10,8 @@ import java.util.List;
 @Component
 public class SpatialInterpolationEngine {
 
-    private static final double METERS_PER_DEGREE_LAT = 111320.0;
     private static final double DEFAULT_POWER_P = 2.0; // Expoente padrão do IDW
 
-    /**
-     * Realiza a interpolação IDW em uma malha retangular em torno de Londres.
-     *
-     * @param samplePoints Lista de pontos conhecidos com valores medidos/calculados
-     * @param minLat Latitude mínima da caixa delimitadora (Bounding Box)
-     * @param maxLat Latitude máxima da caixa delimitadora
-     * @param minLon Longitude mínima da caixa delimitadora
-     * @param maxLon Longitude máxima da caixa delimitadora
-     * @param gridSize Passos da malha em graus (ex: 0.005 para ~500 metros)
-     * @param hotspotThreshold Limite de corte para definir se o ponto é um hotspot crítico
-     * @return Lista de pontos interpolados na malha regular
-     */
     public List<InterpolatedPointDTO> interpolateGrid(
             List<SamplePointDTO> samplePoints,
             double minLat,
@@ -42,7 +29,6 @@ public class SpatialInterpolationEngine {
 
         for (double lat = minLat; lat <= maxLat; lat += gridSize) {
             for (double lon = minLon; lon <= maxLon; lon += gridSize) {
-
                 double interpolatedValue = calculateIDWValue(lat, lon, samplePoints, DEFAULT_POWER_P);
                 boolean isHotspot = interpolatedValue >= hotspotThreshold;
 
@@ -53,9 +39,6 @@ public class SpatialInterpolationEngine {
         return grid;
     }
 
-    /**
-     * Aplica a fórmula matemática do IDW para um ponto (lat, lon) específico.
-     */
     public double calculateIDWValue(double lat, double lon, List<SamplePointDTO> samplePoints, double p) {
         double weightedSum = 0.0;
         double totalWeight = 0.0;
@@ -65,7 +48,6 @@ public class SpatialInterpolationEngine {
                     lat, lon, sample.latitude(), sample.longitude()
             );
 
-            // Caso o ponto da malha coincida exatamente com uma estação/posto conhecido
             if (distanceMeters < 1.0) {
                 return sample.value();
             }
@@ -78,9 +60,6 @@ public class SpatialInterpolationEngine {
         return totalWeight > 0 ? (weightedSum / totalWeight) : 0.0;
     }
 
-    /**
-     * Calcula a distância aproximada em metros entre dois pontos geográficos usando a Fórmula de Haversine.
-     */
     private double calculateHaversineDistanceMeters(double lat1, double lon1, double lat2, double lon2) {
         double earthRadiusMeters = 6371000.0;
         double dLat = Math.toRadians(lat2 - lat1);

@@ -1,6 +1,6 @@
 package com.example.emissionsCalculator.service.gasEmissions.calculator;
 
-import com.example.emissionsCalculator.service.gasEmissions.constants.EmissionModelConstants;
+import com.example.emissionsCalculator.enums.gasEmissions.EmissionModelConstants;
 import com.example.emissionsCalculator.entity.gasEmissions.GasStationEmission;
 
 import java.time.LocalDateTime;

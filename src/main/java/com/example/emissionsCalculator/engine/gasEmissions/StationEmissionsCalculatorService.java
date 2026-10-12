@@ -1,4 +1,4 @@
-package com.example.emissionsCalculator.service.gasEmissions;
+package com.example.emissionsCalculator.engine.gasEmissions;
 
 import com.example.emissionsCalculator.dto.gasEmissions.GasStationEmissionResponseDTO;
 import com.example.emissionsCalculator.engine.scientific.vocGasStation.StationEmissionsEngine;
@@ -9,7 +9,7 @@ import com.example.emissionsCalculator.repository.gasEmissions.GasStationEmissio
 import com.example.emissionsCalculator.repository.gasStation.CmaGasStationRepository;
 import com.example.emissionsCalculator.repository.weather.HourlyWeatherRecordRepository;
 import com.example.emissionsCalculator.service.gasEmissions.calculator.EvaporativeEmissionsCalculator;
-import com.example.emissionsCalculator.service.gasEmissions.constants.EmissionModelConstants;
+import com.example.emissionsCalculator.enums.gasEmissions.EmissionModelConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -25,11 +25,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * <b>O que é:</b> Serviço responsável pela orquestração do cálculo de emissões.
- * <b>Para que serve:</b> Buscar variáveis climáticas recentes, iterar sobre os postos oficiais da CMA,
- * persistir a base oficial e acionar o motor científico experimental de forma isolada.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -38,18 +33,14 @@ public class StationEmissionsCalculatorService {
     private final GasStationEmissionRepository emissionRepository;
     private final HourlyWeatherRecordRepository weatherRepository;
     private final CmaGasStationRepository cmaGasStationRepository;
-    private final StationEmissionsEngine stationEmissionsEngine; // <-- INJEÇÃO DO MOTOR CIENTÍFICO
+    private final StationEmissionsEngine stationEmissionsEngine;
 
-    /**
-     * Executa o cálculo de emissões em segundo plano para todos os postos oficiais da CMA.
-     */
     @Async
     @Transactional
     public CompletableFuture<Integer> calculateEmissionsForCurrentHour() {
         log.info("⏳ Iniciando orquestração do cálculo de emissões para a base oficial da CMA...");
 
         try {
-            // 1. Obtenção otimizada da medição meteorológica mais recente
             HourlyWeatherRecord latestWeather = weatherRepository.findFirstByOrderByForecastTimestampDesc()
                     .or(() -> weatherRepository.findFirstByOrderByIdDesc())
                     .orElse(null);
@@ -62,23 +53,18 @@ public class StationEmissionsCalculatorService {
                     ? latestWeather.getWindSpeedKmh()
                     : EmissionModelConstants.DEFAULT_WIND_SPEED_KMH.getValue();
 
-            // 2. Execução dos cálculos científicos universais (Antoine / EPA AP-42)
             double trueVaporPressure = EvaporativeEmissionsCalculator.calculateTrueVaporPressure(tempC);
             double emissionFactor = EvaporativeEmissionsCalculator.calculateEmissionFactor(tempC, trueVaporPressure);
 
-            // 3. Consulta de todos os postos oficiais cadastrados
             List<CmaGasStation> cmaStations = cmaGasStationRepository.findAll();
             if (cmaStations.isEmpty()) {
                 log.warn("⚠️ Nenhum posto encontrado na tabela da CMA. Execute a ingestão antes do cálculo.");
                 return CompletableFuture.completedFuture(0);
             }
 
-            log.info("🔍 Processando emissões para {} postos oficiais...", cmaStations.size());
-
             List<GasStationEmission> emissionsToSave = new ArrayList<>(cmaStations.size());
             LocalDateTime now = LocalDateTime.now();
 
-            // 4. Processamento iterativo para cada posto da CMA
             for (CmaGasStation station : cmaStations) {
                 double throughputLiters = EmissionModelConstants.DEFAULT_THROUGHPUT_LITERS_PER_DAY.getValue();
 
@@ -89,18 +75,16 @@ public class StationEmissionsCalculatorService {
                 emissionsToSave.add(emission);
             }
 
-            // 5. Persistência em lote de todas as emissões da base oficial (EPA)
             List<GasStationEmission> savedEmissions = emissionRepository.saveAll(emissionsToSave);
             log.info("✅ Processamento da base oficial (EPA) concluído com sucesso para {} postos!", savedEmissions.size());
 
-            // 6. EXECUÇÃO DOS MODELOS CIENTÍFICOS EXPERIMENTAIS (CETESB, ETC)
             try {
                 Map<Long, GasStationEmission> baselineMap = savedEmissions.stream()
                         .collect(Collectors.toMap(GasStationEmission::getGasStationId, e -> e));
 
                 stationEmissionsEngine.runExperimentalModels(cmaStations, latestWeather, baselineMap);
             } catch (Exception e) {
-                log.error("⚠️ Falha ao executar modelos experimentais (o cálculo base foi mantido): {}", e.getMessage(), e);
+                log.error("⚠️ Falha ao executar modelos experimentais: {}", e.getMessage(), e);
             }
 
             return CompletableFuture.completedFuture(savedEmissions.size());
@@ -109,6 +93,62 @@ public class StationEmissionsCalculatorService {
             log.error("❌ Falha durante o processamento assíncrono de emissões: {}", e.getMessage(), e);
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    /**
+     * Preenchimento histórico (Backfill) hora a hora para os últimos 7 dias.
+     */
+    @Transactional
+    public int calculateEmissionsForPastWeek() {
+        log.info("⏳ Iniciando o preenchimento histórico de emissões para os últimos 7 dias...");
+
+        List<CmaGasStation> cmaStations = cmaGasStationRepository.findAll();
+        if (cmaStations.isEmpty()) {
+            log.warn("⚠️ Nenhum posto encontrado na CMA para o cálculo histórico.");
+            return 0;
+        }
+
+        LocalDateTime endTime = LocalDateTime.now();
+        LocalDateTime startTime = endTime.minusDays(7);
+        int totalRecordsSaved = 0;
+
+        LocalDateTime currentHour = startTime;
+        while (!currentHour.isAfter(endTime)) {
+            final LocalDateTime targetTime = currentHour;
+            HourlyWeatherRecord weather = weatherRepository.findFirstByOrderByForecastTimestampDesc()
+                    .orElse(null);
+
+            double tempC = (weather != null && weather.getTemperatureCelsius() != null)
+                    ? weather.getTemperatureCelsius()
+                    : EmissionModelConstants.DEFAULT_TEMPERATURE_CELSIUS.getValue();
+
+            double windKmh = (weather != null && weather.getWindSpeedKmh() != null)
+                    ? weather.getWindSpeedKmh()
+                    : EmissionModelConstants.DEFAULT_WIND_SPEED_KMH.getValue();
+
+            double trueVaporPressure = EvaporativeEmissionsCalculator.calculateTrueVaporPressure(tempC);
+            double emissionFactor = EvaporativeEmissionsCalculator.calculateEmissionFactor(tempC, trueVaporPressure);
+
+            List<GasStationEmission> emissionsToSave = new ArrayList<>(cmaStations.size());
+
+            for (CmaGasStation station : cmaStations) {
+                double throughputLiters = EmissionModelConstants.DEFAULT_THROUGHPUT_LITERS_PER_DAY.getValue() / 24.0;
+
+                GasStationEmission emission = EvaporativeEmissionsCalculator.calculateForStation(
+                        station.getId(), tempC, windKmh, throughputLiters, emissionFactor, targetTime
+                );
+
+                emissionsToSave.add(emission);
+            }
+
+            List<GasStationEmission> saved = emissionRepository.saveAll(emissionsToSave);
+            totalRecordsSaved += saved.size();
+
+            currentHour = currentHour.plusHours(1);
+        }
+
+        log.info("✅ Preenchimento histórico de 7 dias concluído! Total de {} registos gerados.", totalRecordsSaved);
+        return totalRecordsSaved;
     }
 
     @Transactional(readOnly = true)
@@ -129,8 +169,8 @@ public class StationEmissionsCalculatorService {
     }
 
     @Transactional(readOnly = true)
-    public List<GasStationEmissionResponseDTO> getAllEmissions() {
-        return emissionRepository.findAll().stream()
+    public List<GasStationEmissionResponseDTO> getLatestEmissionsForMap() {
+        return emissionRepository.findLatestEmissionsForAllStations().stream()
                 .map(e -> new GasStationEmissionResponseDTO(
                         e.getId(),
                         e.getGasStationId(),
@@ -147,8 +187,15 @@ public class StationEmissionsCalculatorService {
     }
 
     @Transactional(readOnly = true)
-    public List<GasStationEmissionResponseDTO> getLatestEmissionsForMap() {
-        return emissionRepository.findLatestEmissionsForAllStations().stream()
+    public List<GasStationEmissionResponseDTO> getEmissionsForWeek(LocalDateTime startDate, LocalDateTime endDate) {
+        if (endDate == null) {
+            endDate = LocalDateTime.now();
+        }
+        if (startDate == null) {
+            startDate = endDate.minusDays(7);
+        }
+
+        return emissionRepository.findByCalculationTimestampBetween(startDate, endDate).stream()
                 .map(e -> new GasStationEmissionResponseDTO(
                         e.getId(),
                         e.getGasStationId(),

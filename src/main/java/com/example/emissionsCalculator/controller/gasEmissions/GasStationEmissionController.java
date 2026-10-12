@@ -1,21 +1,19 @@
 package com.example.emissionsCalculator.controller.gasEmissions;
 
 import com.example.emissionsCalculator.dto.gasEmissions.GasStationEmissionResponseDTO;
-import com.example.emissionsCalculator.service.gasEmissions.StationEmissionsCalculatorService;
+import com.example.emissionsCalculator.engine.gasEmissions.StationEmissionsCalculatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * <b>O que é:</b> Controlador REST para o módulo de Cálculo de Emissões de Postos.
- * <b>Para que serve:</b> Expor endpoints para acionamento do cálculo e consulta paginada ou atualizada dos resultados.
- */
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/emissions")
@@ -36,9 +34,6 @@ public class GasStationEmissionController {
         }
     }
 
-    /**
-     * Retorna os registros de emissão de forma paginada para evitar sobrecarga no frontend/Swagger.
-     */
     @GetMapping
     public ResponseEntity<Page<GasStationEmissionResponseDTO>> getEmissions(
             @RequestParam(defaultValue = "0") int page,
@@ -48,11 +43,15 @@ public class GasStationEmissionController {
         return ResponseEntity.ok(emissionsService.getEmissions(pageRequest));
     }
 
-    /**
-     * Retorna apenas a medição mais recente de emissões para cada posto (ideal para renderização em mapas).
-     */
     @GetMapping("/map-latest")
     public ResponseEntity<List<GasStationEmissionResponseDTO>> getLatestEmissionsForMap() {
         return ResponseEntity.ok(emissionsService.getLatestEmissionsForMap());
+    }
+
+    @GetMapping("/weekly")
+    public ResponseEntity<List<GasStationEmissionResponseDTO>> getEmissionsForWeek(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        return ResponseEntity.ok(emissionsService.getEmissionsForWeek(startDate, endDate));
     }
 }

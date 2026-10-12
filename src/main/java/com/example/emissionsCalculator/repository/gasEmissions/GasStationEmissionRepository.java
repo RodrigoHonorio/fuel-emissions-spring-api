@@ -5,12 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * <b>O que é:</b> Repositório JPA para a entidade GasStationEmission.
- * <b>Para que serve:</b> Realizar operações de persistência e consultas na tabela 'gas_station_emissions'.
- */
 @Repository
 public interface GasStationEmissionRepository extends JpaRepository<GasStationEmission, Long> {
 
@@ -22,4 +19,6 @@ public interface GasStationEmissionRepository extends JpaRepository<GasStationEm
         ORDER BY gas_station_id, calculation_timestamp DESC
         """, nativeQuery = true)
     List<GasStationEmission> findLatestEmissionsForAllStations();
+
+    List<GasStationEmission> findByCalculationTimestampBetween(LocalDateTime startTimestamp, LocalDateTime endTimestamp);
 }

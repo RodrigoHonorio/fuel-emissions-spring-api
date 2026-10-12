@@ -1,4 +1,4 @@
-package com.example.emissionsCalculator.service.gasEmissions.constants;
+package com.example.emissionsCalculator.enums.gasEmissions;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

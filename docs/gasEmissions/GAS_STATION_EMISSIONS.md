@@ -112,7 +112,7 @@ EvaporativeEmissionsCalculator.java
 Java
 package com.example.emissionsCalculator.service.gasEmissions.calculator;
 
-import com.example.emissionsCalculator.service.gasEmissions.constants.EmissionModelConstants;
+import com.example.emissionsCalculator.enums.gasEmissions.EmissionModelConstants;
 import com.example.emissionsCalculator.entity.gasEmissions.GasStationEmission;
 
 import java.time.LocalDateTime;
@@ -280,7 +280,7 @@ Java
 package com.example.emissionsCalculator.service.gasEmissions;
 
 import com.example.emissionsCalculator.service.gasEmissions.calculator.EvaporativeEmissionsCalculator;
-import com.example.emissionsCalculator.service.gasEmissions.constants.EmissionModelConstants;
+import com.example.emissionsCalculator.enums.gasEmissions.EmissionModelConstants;
 import com.example.emissionsCalculator.dto.gasEmissions.GasStationEmissionResponseDTO;
 import com.example.emissionsCalculator.entity.gasEmissions.GasStationEmission;
 import com.example.emissionsCalculator.entity.gasStation.CmaGasStation;
@@ -386,7 +386,7 @@ Java
 package com.example.emissionsCalculator.controller.gasEmissions;
 
 import com.example.emissionsCalculator.dto.gasEmissions.GasStationEmissionResponseDTO;
-import com.example.emissionsCalculator.service.gasEmissions.StationEmissionsCalculatorService;
+import com.example.emissionsCalculator.engine.gasEmissions.StationEmissionsCalculatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

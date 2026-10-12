@@ -3,7 +3,7 @@ package com.example.emissionsCalculator.service.boundary;
 import com.example.emissionsCalculator.dto.boundary.OnsBoroughFeatureDTO;
 import com.example.emissionsCalculator.dto.boundary.OnsBoroughResponseDTO;
 import com.example.emissionsCalculator.entity.boundary.LondonBoundary;
-import com.example.emissionsCalculator.service.boundary.enums.LondonBoundaryApi;
+import com.example.emissionsCalculator.enums.boundary.LondonBoundaryApi;
 import com.example.emissionsCalculator.repository.boundary.LondonBoundaryRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

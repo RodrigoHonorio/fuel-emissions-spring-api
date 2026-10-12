@@ -2,14 +2,18 @@ package com.example.emissionsCalculator.service.system;
 
 import com.example.emissionsCalculator.service.airQualityStation.AirQualityStationIngestionService;
 import com.example.emissionsCalculator.service.boundary.LondonBoundaryIngestionService;
-import com.example.emissionsCalculator.service.gasEmissions.StationEmissionsCalculatorService;
+import com.example.emissionsCalculator.engine.gasEmissions.StationEmissionsCalculatorService;
 import com.example.emissionsCalculator.service.gasStation.CmaGasStationIngestionService;
 import com.example.emissionsCalculator.service.gasStation.OsmGasStationIngestionService;
 import com.example.emissionsCalculator.service.weather.WeatherIngestionService;
-import com.example.emissionsCalculator.engine.scientific.vocGasStation.StationEmissionsEngine; // Novo módulo injetado
+import com.example.emissionsCalculator.service.spatial.SpatialHotspotService;
+import com.example.emissionsCalculator.engine.scientific.vocGasStation.StationEmissionsEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -22,66 +26,91 @@ public class MasterDataSyncService {
     private final AirQualityStationIngestionService airQualityService;
     private final WeatherIngestionService weatherService;
     private final StationEmissionsCalculatorService emissionsCalculatorService;
-
-    // Injeção do novo motor do Framework S.P.I.R.E.
     private final StationEmissionsEngine scientificEmissionsEngine;
+    private final SpatialHotspotService spatialHotspotService;
 
     public String executeFullDataPipeline() {
         log.info("🚀 A iniciar a pipeline completa de sincronização do sistema...");
         StringBuilder summary = new StringBuilder("=== RELATÓRIO DE EXECUÇÃO ===\n");
 
         try {
-            // 1. Limites dos Distritos de Londres
-            log.info("1/7. A sincronizar limites territoriais de Londres...");
             int boundaries = boundaryService.syncLondonBoundaries();
             summary.append("1. Distritos de Londres: ").append(boundaries).append(" processados.\n");
 
-            // 2. Postos Oficiais da CMA
-            log.info("2/7. A sincronizar postos de combustível CMA...");
             int cmaCount = cmaService.syncCmaGasStations();
             summary.append("2. Postos CMA: ").append(cmaCount).append(" guardados.\n");
 
-            // 3. Postos do OpenStreetMap (OSM) - Tolerante a Timeout
-            log.info("3/7. A sincronizar postos OSM para Londres...");
-            try {
-                int osmCount = osmService.syncOsmGasStationsForLondon();
-                summary.append("3. Postos OSM: ").append(osmCount).append(" guardados.\n");
-            } catch (Exception e) {
-                log.warn("⚠️ Aviso: A sincronização do OSM falhou por timeout ou sobrecarga do Overpass, mas a pipeline prosseguirá: {}", e.getMessage());
-                summary.append("3. Postos OSM: Falhou temporariamente (Timeout do Overpass).\n");
-            }
+            int osmCount = osmService.syncOsmGasStationsForLondon();
+            summary.append("3. Postos OSM: ").append(osmCount).append(" guardados.\n");
 
-            // 4. Estações de Qualidade do Ar (LAQN)
-            log.info("4/7. A sincronizar estações de qualidade do ar...");
             int airStations = airQualityService.syncStations();
-            summary.append("4. Estações Qualidade Ar: ").append(airStations).append(" processadas.\n");
+            int hourlyAirQualityCount = airQualityService.syncHourlyAirQualityPastWeek();
+            summary.append("4. Estações Qualidade Ar: ").append(airStations)
+                    .append(" (Registos horários 7 dias: ").append(hourlyAirQualityCount).append(").\n");
 
-            // 5. Dados Meteorológicos
-            log.info("5/7. A sincronizar série temporal do clima...");
             int weatherCount = weatherService.syncWeatherForecast();
             summary.append("5. Dados de Clima: ").append(weatherCount).append(" registos atualizados.\n");
 
-            // 6. Cálculo de Emissões Base (EPA AP-42)
-            log.info("6/7. A calcular emissões base dos postos (Padrão Oficial EPA)...");
-            emissionsCalculatorService.calculateEmissionsForCurrentHour();
-            summary.append("6. Cálculo de Emissões (Base): Concluído com sucesso.\n");
+            emissionsCalculatorService.calculateEmissionsForPastWeek();
+            summary.append("6. Cálculo de Emissões Históricas (7 dias): Concluído com sucesso.\n");
 
-            // 7. NOVO: Cálculo de Emissões Experimentais (S.P.I.R.E. / CETESB)
-            log.info("7/7. A executar modelos científicos experimentais de reabastecimento...");
-            try {
-                // Invoca o motor S.P.I.R.E. para capturar os dados atuais do banco e gerar os deltas
-                scientificEmissionsEngine.executeCurrentHourModels();
-                summary.append("7. Modelos S.P.I.R.E (CETESB): Concluído com sucesso.\n");
-            } catch (Exception e) {
-                log.warn("⚠️ Aviso: Falha ao executar modelos científicos experimentais: {}", e.getMessage());
-                summary.append("7. Modelos S.P.I.R.E (CETESB): Falhou (").append(e.getMessage()).append(").\n");
-            }
+            scientificEmissionsEngine.executeCurrentHourModels();
+            summary.append("7. Modelos S.P.I.R.E (CETESB): Concluído com sucesso.\n");
+
+            int hotspotsCount = spatialHotspotService.generateAndSaveHotspots();
+            summary.append("8. Hotspots Espaciais Críticos: ").append(hotspotsCount).append(" detetados e gravados.\n");
 
             log.info("✅ Pipeline executada com sucesso!");
             return summary.toString();
 
         } catch (Exception e) {
             log.error("❌ Falha crítica na pipeline de sincronização: ", e);
+            throw new RuntimeException("Erro ao executar pipeline master: " + e.getMessage(), e);
+        }
+    }
+
+    public Map<String, Object> executeFullPipelineMap() {
+        log.info("🚀 A iniciar a pipeline completa de sincronização do sistema (Formato JSON)...");
+        long startTime = System.currentTimeMillis();
+        Map<String, Object> report = new HashMap<>();
+
+        try {
+            int boundaries = boundaryService.syncLondonBoundaries();
+            int cmaCount = cmaService.syncCmaGasStations();
+            int osmCount = osmService.syncOsmGasStationsForLondon();
+            int airStations = airQualityService.syncStations();
+            int hourlyAirQualityCount = airQualityService.syncHourlyAirQualityPastWeek();
+            int weatherCount = weatherService.syncWeatherForecast();
+
+            emissionsCalculatorService.calculateEmissionsForPastWeek();
+
+            int hotspotsCount = spatialHotspotService.generateAndSaveHotspots();
+
+            try {
+                scientificEmissionsEngine.executeCurrentHourModels();
+                report.put("scientificModelsStatus", "SUCCESS");
+            } catch (Exception e) {
+                log.warn("⚠️ Aviso: Falha nos modelos científicos: {}", e.getMessage());
+                report.put("scientificModelsStatus", "FAILED: " + e.getMessage());
+            }
+
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            report.put("status", "SUCCESS");
+            report.put("executionTimeMs", executionTime);
+            report.put("boundariesProcessed", boundaries);
+            report.put("cmaStationsProcessed", cmaCount);
+            report.put("osmStationsProcessed", osmCount);
+            report.put("airStationsProcessed", airStations);
+            report.put("hourlyAirQualityRecordsProcessed", hourlyAirQualityCount);
+            report.put("weatherRecordsUpdated", weatherCount);
+            report.put("spatialHotspotsDetected", hotspotsCount);
+
+            log.info("✅ Pipeline JSON executada com sucesso em {} ms!", executionTime);
+            return report;
+
+        } catch (Exception e) {
+            log.error("❌ Falha crítica na pipeline de sincronização JSON: ", e);
             throw new RuntimeException("Erro ao executar pipeline master: " + e.getMessage(), e);
         }
     }

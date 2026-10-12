@@ -1,46 +1,39 @@
 package com.example.emissionsCalculator.entity.airQualityStation;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * <b>O que é:</b> Entidade JPA para registro de medições horárias de poluentes.
- * <b>Para que serve:</b> Armazenar a série temporal de NO2, PM10, PM2.5 e O3 associada a uma estação.
- * <b>De onde veio:</b> Tabela 'hourly_air_quality_records'.
- */
 @Entity
-@Table(name = "hourly_air_quality_records", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_station_measurement_time", columnNames = {"station_id", "measurementTimestamp"})
-})
-@Getter
-@Setter
+@Table(name = "hourly_air_quality_records")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class HourlyAirQualityRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "station_id", nullable = false)
-    private AirQualityStation station;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "air_quality_station_id")
+    private AirQualityStation airQualityStation;
 
-    @Column(nullable = false)
+    @Column(name = "measurement_timestamp")
     private LocalDateTime measurementTimestamp;
 
-    private Double no2Ugm3;
+    @Column(name = "no2")
+    private Double no2;
 
-    private Double pm10Ugm3;
+    @Column(name = "pm10")
+    private Double pm10;
 
-    private Double pm25Ugm3;
+    @Column(name = "pm25")
+    private Double pm25;
 
-    private Double o3Ugm3;
-
-    private Integer airQualityIndex;
-
-    private LocalDateTime updatedAt;
+    @Column(name = "o3")
+    private Double o3;
 }

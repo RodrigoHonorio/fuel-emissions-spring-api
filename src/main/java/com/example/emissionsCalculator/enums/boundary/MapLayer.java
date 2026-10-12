@@ -1,4 +1,4 @@
-package com.example.emissionsCalculator.service.boundary.enums;
+package com.example.emissionsCalculator.enums.boundary;
 
 import lombok.Getter;
 
