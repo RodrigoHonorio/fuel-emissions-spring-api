@@ -147,19 +147,37 @@ public class SpatialHotspotService {
     @Transactional(readOnly = true)
     public List<HotspotResponseDTO> getAllHotspotsFromDb() {
         return hotspotRepository.findAll().stream()
-                .map(h -> new HotspotResponseDTO(
-                        h.getId(),
-                        h.getPollutantType(),
-                        h.getCalculationTimestamp(),
-                        h.getIntensityScore(),
-                        h.getSeverityLevel(),
-                        h.getSourceInstitution(),
-                        h.getStandardReference(),
-                        h.getGeometry() != null ? h.getGeometry().getY() : null,
-                        h.getGeometry() != null ? h.getGeometry().getX() : null,
-                        h.getBoroughCode()
-                ))
+                .map(this::mapToDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HotspotResponseDTO> getHotspotsBySeverity(String severity) {
+        return hotspotRepository.findBySeverityLevel(severity.toUpperCase()).stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HotspotResponseDTO> getHotspotsByBorough(String boroughCode) {
+        return hotspotRepository.findByBoroughCode(boroughCode).stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    private HotspotResponseDTO mapToDto(SpatialHotspot h) {
+        return new HotspotResponseDTO(
+                h.getId(),
+                h.getPollutantType(),
+                h.getCalculationTimestamp(),
+                h.getIntensityScore(),
+                h.getSeverityLevel(),
+                h.getSourceInstitution(),
+                h.getStandardReference(),
+                h.getGeometry() != null ? h.getGeometry().getY() : null, // Latitude
+                h.getGeometry() != null ? h.getGeometry().getX() : null, // Longitude
+                h.getBoroughCode()
+        );
     }
 
     private void processIdwHotspots(List<SamplePointDTO> samples, PollutantThresholds threshold,
