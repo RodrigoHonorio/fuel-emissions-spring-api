@@ -2,7 +2,7 @@ package com.example.emissionsCalculator.engine.scientific.vocGasStation;
 
 import com.example.emissionsCalculator.entity.gasEmissions.GasStationEmission;
 import com.example.emissionsCalculator.entity.gasStation.CmaGasStation;
-import com.example.emissionsCalculator.entity.scientific.vocGasStation.ScientificModelResult; // <-- Import correto aqui!
+import com.example.emissionsCalculator.entity.scientific.vocGasStation.ScientificModelResult;
 import com.example.emissionsCalculator.entity.weather.HourlyWeatherRecord;
 
 import java.time.LocalDateTime;

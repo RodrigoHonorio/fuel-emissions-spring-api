@@ -12,6 +12,7 @@ import com.example.emissionsCalculator.repository.scientific.simulation.Simulati
 import com.example.emissionsCalculator.repository.scientific.simulation.SimulationInputSnapshotRepository;
 import com.example.emissionsCalculator.repository.scientific.simulation.SimulationPollutantResultRepository;
 import com.example.emissionsCalculator.repository.weather.HourlyWeatherRecordRepository;
+import com.example.emissionsCalculator.service.gasStation.StationThroughputEstimator;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -44,19 +45,15 @@ public class SimulationExecutorWorker {
 
     @Transactional
     public void executeSimulation(Long batchId, LocalDateTime startTime, LocalDateTime endTime, Long parentSimulationId) {
-        log.info("⚙️ [TRANSACTIONAL WORKER] A iniciar processamento (Passado + Futuro) para o lote ID: {}", batchId);
+        log.info("⚙️ [TRANSACTIONAL WORKER] A iniciar simulação com volumes reais para o lote ID: {}", batchId);
 
         SimulationBatch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
-            log.error("❌ [TRANSACTIONAL WORKER] Batch ID {} não encontrado!", batchId);
-            return;
-        }
+        if (batch == null) return;
 
         try {
             List<CmaGasStation> stations = stationRepository.findAll();
             List<ScientificRule> rules = ruleRepository.findAll();
 
-            // Pré-compilação de fórmulas MVEL
             Map<String, Serializable> compiledRules = new HashMap<>();
             for (ScientificRule rule : rules) {
                 try {
@@ -67,7 +64,6 @@ public class SimulationExecutorWorker {
                 }
             }
 
-            // Filtra registos desde o início do lookback até ao fim do forecast
             List<HourlyWeatherRecord> weatherRecords = weatherRepository.findAll().stream()
                     .filter(w -> w.getForecastTimestamp() != null &&
                             !w.getForecastTimestamp().isBefore(startTime) &&
@@ -95,17 +91,13 @@ public class SimulationExecutorWorker {
                 double windKmh = weather.getWindSpeedKmh() != null ? weather.getWindSpeedKmh() : 10.0;
                 double humidity = weather.getRelativeHumidityPercentage() != null ? weather.getRelativeHumidityPercentage() : 60.0;
 
-                // Log com percentagem de progresso
-                if (totalSteps > 0 && (hourCount % 12 == 0 || hourCount == 1 || hourCount == totalSteps)) {
-                    double progressPercent = ((double) hourCount / totalSteps) * 100.0;
-                    log.info("⏳ [BACKGROUND PROGRESS] Lote ID {} -> {}/{} horas ({}% concluído) - Passo: {}",
-                            batchId, hourCount, totalSteps, String.format("%.1f", progressPercent), stepTime);
-                }
-
                 for (CmaGasStation station : stations) {
-                    double gasolineLiters = 4500.0;
-                    double ethanolLiters = 500.0;
-                    double throughput = gasolineLiters + ethanolLiters;
+                    // Cálculo dinâmico e realista por posto
+                    var split = StationThroughputEstimator.estimateThroughput(station);
+                    double gasolineLiters = split.gasolineLiters();
+                    double ethanolLiters = split.ethanolLiters();
+                    double throughput = split.totalLiters();
+
                     double baselineValue = parentResultsMap.getOrDefault(station.getId(), 2.5);
 
                     SimulationInputSnapshot snapshot = SimulationInputSnapshot.builder()
@@ -156,7 +148,7 @@ public class SimulationExecutorWorker {
                                 resultsToSave.add(result);
                             }
                         } catch (Exception e) {
-                            log.error("Erro ao executar MVEL compilado para regra [{}] no passo {}: {}", rule.getRuleId(), stepTime, e.getMessage());
+                            log.error("Erro MVEL para regra [{}]: {}", rule.getRuleId(), e.getMessage());
                         }
                     }
                 }
@@ -180,10 +172,10 @@ public class SimulationExecutorWorker {
 
             batch.setStatus("SUCCESS");
             batchRepository.save(batch);
-            log.info("✅ [BACKGROUND SUCCESS] Lote ID {} ('{}') concluído com sucesso!", batchId, batch.getBatchName());
+            log.info("✅ [BACKGROUND SUCCESS] Lote ID {} concluído com sucesso!", batchId);
 
         } catch (Exception e) {
-            log.error("❌ [BACKGROUND ERROR] Falha crítica no lote ID {}: {}", batchId, e.getMessage(), e);
+            log.error("❌ [BACKGROUND ERROR] Falha no lote ID {}: {}", batchId, e.getMessage(), e);
             batch.setStatus("FAILED");
             batchRepository.save(batch);
         }

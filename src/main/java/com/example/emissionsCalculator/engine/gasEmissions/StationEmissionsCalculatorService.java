@@ -10,6 +10,7 @@ import com.example.emissionsCalculator.repository.gasStation.CmaGasStationReposi
 import com.example.emissionsCalculator.repository.weather.HourlyWeatherRecordRepository;
 import com.example.emissionsCalculator.service.gasEmissions.calculator.EvaporativeEmissionsCalculator;
 import com.example.emissionsCalculator.enums.gasEmissions.EmissionModelConstants;
+import com.example.emissionsCalculator.service.gasStation.StationThroughputEstimator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,7 +39,7 @@ public class StationEmissionsCalculatorService {
     @Async
     @Transactional
     public CompletableFuture<Integer> calculateEmissionsForCurrentHour() {
-        log.info("⏳ Iniciando orquestração do cálculo de emissões para a base oficial da CMA...");
+        log.info("⏳ Iniciando orquestração do cálculo de emissões com volumes reais para a base CMA...");
 
         try {
             HourlyWeatherRecord latestWeather = weatherRepository.findFirstByOrderByForecastTimestampDesc()
@@ -58,7 +59,7 @@ public class StationEmissionsCalculatorService {
 
             List<CmaGasStation> cmaStations = cmaGasStationRepository.findAll();
             if (cmaStations.isEmpty()) {
-                log.warn("⚠️ Nenhum posto encontrado na tabela da CMA. Execute a ingestão antes do cálculo.");
+                log.warn("⚠️ Nenhum posto encontrado na tabela da CMA.");
                 return CompletableFuture.completedFuture(0);
             }
 
@@ -66,7 +67,9 @@ public class StationEmissionsCalculatorService {
             LocalDateTime now = LocalDateTime.now();
 
             for (CmaGasStation station : cmaStations) {
-                double throughputLiters = EmissionModelConstants.DEFAULT_THROUGHPUT_LITERS_PER_DAY.getValue();
+                // Cálculo dinâmico e realista do volume do posto
+                var split = StationThroughputEstimator.estimateThroughput(station);
+                double throughputLiters = split.totalLiters();
 
                 GasStationEmission emission = EvaporativeEmissionsCalculator.calculateForStation(
                         station.getId(), tempC, windKmh, throughputLiters, emissionFactor, now
@@ -76,7 +79,7 @@ public class StationEmissionsCalculatorService {
             }
 
             List<GasStationEmission> savedEmissions = emissionRepository.saveAll(emissionsToSave);
-            log.info("✅ Processamento da base oficial (EPA) concluído com sucesso para {} postos!", savedEmissions.size());
+            log.info("✅ Processamento com volumes reais concluído para {} postos!", savedEmissions.size());
 
             try {
                 Map<Long, GasStationEmission> baselineMap = savedEmissions.stream()
@@ -95,18 +98,12 @@ public class StationEmissionsCalculatorService {
         }
     }
 
-    /**
-     * Preenchimento histórico (Backfill) hora a hora para os últimos 7 dias.
-     */
     @Transactional
     public int calculateEmissionsForPastWeek() {
         log.info("⏳ Iniciando o preenchimento histórico de emissões para os últimos 7 dias...");
 
         List<CmaGasStation> cmaStations = cmaGasStationRepository.findAll();
-        if (cmaStations.isEmpty()) {
-            log.warn("⚠️ Nenhum posto encontrado na CMA para o cálculo histórico.");
-            return 0;
-        }
+        if (cmaStations.isEmpty()) return 0;
 
         LocalDateTime endTime = LocalDateTime.now();
         LocalDateTime startTime = endTime.minusDays(7);
@@ -115,16 +112,10 @@ public class StationEmissionsCalculatorService {
         LocalDateTime currentHour = startTime;
         while (!currentHour.isAfter(endTime)) {
             final LocalDateTime targetTime = currentHour;
-            HourlyWeatherRecord weather = weatherRepository.findFirstByOrderByForecastTimestampDesc()
-                    .orElse(null);
+            HourlyWeatherRecord weather = weatherRepository.findFirstByOrderByForecastTimestampDesc().orElse(null);
 
-            double tempC = (weather != null && weather.getTemperatureCelsius() != null)
-                    ? weather.getTemperatureCelsius()
-                    : EmissionModelConstants.DEFAULT_TEMPERATURE_CELSIUS.getValue();
-
-            double windKmh = (weather != null && weather.getWindSpeedKmh() != null)
-                    ? weather.getWindSpeedKmh()
-                    : EmissionModelConstants.DEFAULT_WIND_SPEED_KMH.getValue();
+            double tempC = (weather != null && weather.getTemperatureCelsius() != null) ? weather.getTemperatureCelsius() : 15.0;
+            double windKmh = (weather != null && weather.getWindSpeedKmh() != null) ? weather.getWindSpeedKmh() : 10.0;
 
             double trueVaporPressure = EvaporativeEmissionsCalculator.calculateTrueVaporPressure(tempC);
             double emissionFactor = EvaporativeEmissionsCalculator.calculateEmissionFactor(tempC, trueVaporPressure);
@@ -132,10 +123,11 @@ public class StationEmissionsCalculatorService {
             List<GasStationEmission> emissionsToSave = new ArrayList<>(cmaStations.size());
 
             for (CmaGasStation station : cmaStations) {
-                double throughputLiters = EmissionModelConstants.DEFAULT_THROUGHPUT_LITERS_PER_DAY.getValue() / 24.0;
+                var split = StationThroughputEstimator.estimateThroughput(station);
+                double hourlyThroughput = split.totalLiters() / 24.0;
 
                 GasStationEmission emission = EvaporativeEmissionsCalculator.calculateForStation(
-                        station.getId(), tempC, windKmh, throughputLiters, emissionFactor, targetTime
+                        station.getId(), tempC, windKmh, hourlyThroughput, emissionFactor, targetTime
                 );
 
                 emissionsToSave.add(emission);
@@ -143,11 +135,10 @@ public class StationEmissionsCalculatorService {
 
             List<GasStationEmission> saved = emissionRepository.saveAll(emissionsToSave);
             totalRecordsSaved += saved.size();
-
             currentHour = currentHour.plusHours(1);
         }
 
-        log.info("✅ Preenchimento histórico de 7 dias concluído! Total de {} registos gerados.", totalRecordsSaved);
+        log.info("✅ Preenchimento histórico de 7 dias concluído! Total: {} registos.", totalRecordsSaved);
         return totalRecordsSaved;
     }
 
@@ -155,16 +146,9 @@ public class StationEmissionsCalculatorService {
     public Page<GasStationEmissionResponseDTO> getEmissions(Pageable pageable) {
         return emissionRepository.findAll(pageable)
                 .map(e -> new GasStationEmissionResponseDTO(
-                        e.getId(),
-                        e.getGasStationId(),
-                        e.getCalculationTimestamp(),
-                        e.getTemperatureCelsius(),
-                        e.getWindSpeedKmh(),
-                        e.getEstimatedDailyThroughputLiters(),
-                        e.getEvaporativeVocKg(),
-                        e.getSpillageVocKg(),
-                        e.getTotalVocKg(),
-                        e.getBenzeneEmissionsG()
+                        e.getId(), e.getGasStationId(), e.getCalculationTimestamp(),
+                        e.getTemperatureCelsius(), e.getWindSpeedKmh(), e.getEstimatedDailyThroughputLiters(),
+                        e.getEvaporativeVocKg(), e.getSpillageVocKg(), e.getTotalVocKg(), e.getBenzeneEmissionsG()
                 ));
     }
 
@@ -172,41 +156,23 @@ public class StationEmissionsCalculatorService {
     public List<GasStationEmissionResponseDTO> getLatestEmissionsForMap() {
         return emissionRepository.findLatestEmissionsForAllStations().stream()
                 .map(e -> new GasStationEmissionResponseDTO(
-                        e.getId(),
-                        e.getGasStationId(),
-                        e.getCalculationTimestamp(),
-                        e.getTemperatureCelsius(),
-                        e.getWindSpeedKmh(),
-                        e.getEstimatedDailyThroughputLiters(),
-                        e.getEvaporativeVocKg(),
-                        e.getSpillageVocKg(),
-                        e.getTotalVocKg(),
-                        e.getBenzeneEmissionsG()
+                        e.getId(), e.getGasStationId(), e.getCalculationTimestamp(),
+                        e.getTemperatureCelsius(), e.getWindSpeedKmh(), e.getEstimatedDailyThroughputLiters(),
+                        e.getEvaporativeVocKg(), e.getSpillageVocKg(), e.getTotalVocKg(), e.getBenzeneEmissionsG()
                 ))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<GasStationEmissionResponseDTO> getEmissionsForWeek(LocalDateTime startDate, LocalDateTime endDate) {
-        if (endDate == null) {
-            endDate = LocalDateTime.now();
-        }
-        if (startDate == null) {
-            startDate = endDate.minusDays(7);
-        }
+        if (endDate == null) endDate = LocalDateTime.now();
+        if (startDate == null) startDate = endDate.minusDays(7);
 
         return emissionRepository.findByCalculationTimestampBetween(startDate, endDate).stream()
                 .map(e -> new GasStationEmissionResponseDTO(
-                        e.getId(),
-                        e.getGasStationId(),
-                        e.getCalculationTimestamp(),
-                        e.getTemperatureCelsius(),
-                        e.getWindSpeedKmh(),
-                        e.getEstimatedDailyThroughputLiters(),
-                        e.getEvaporativeVocKg(),
-                        e.getSpillageVocKg(),
-                        e.getTotalVocKg(),
-                        e.getBenzeneEmissionsG()
+                        e.getId(), e.getGasStationId(), e.getCalculationTimestamp(),
+                        e.getTemperatureCelsius(), e.getWindSpeedKmh(), e.getEstimatedDailyThroughputLiters(),
+                        e.getEvaporativeVocKg(), e.getSpillageVocKg(), e.getTotalVocKg(), e.getBenzeneEmissionsG()
                 ))
                 .toList();
     }
