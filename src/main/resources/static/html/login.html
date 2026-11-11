@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emissions Calculator - Login</title>
+    <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>🌍 Emissions Calculator</h2>
+            <p>Insira as suas credenciais para aceder ao sistema</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="username">Utilizador</label>
+                <input type="text" id="username" required placeholder="Ex: admin">
+            </div>
+
+            <div class="input-group">
+                <label for="password">Palavra-passe</label>
+                <input type="password" id="password" required placeholder="••••••••">
+            </div>
+
+            <div id="errorMsg" class="error-message" style="display: none;"></div>
+
+            <button type="submit" id="loginBtn" class="btn-primary">Entrar</button>
+        </form>
+
+        <div class="login-footer">
+            <p>Sistema de Monitorização Ambiental e Emissões • Londres</p>
+        </div>
+    </div>
+</div>
+
+<script src="/js/login.js"></script>
+</body>
+</html>

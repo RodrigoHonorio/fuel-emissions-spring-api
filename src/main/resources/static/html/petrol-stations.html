@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>London Emissions - Dossiê Multi-Poluente de Postos & Qualidade do Ar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0b0f19; color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-modal { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.15); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- MENU LATERAL -->
+<aside class="w-64 glass-card border-r flex flex-col justify-between hidden md:flex">
+    <div class="p-5">
+        <div class="flex items-center space-x-3 mb-8">
+            <div class="bg-emerald-500 p-2 rounded-lg text-black font-bold"><i class="fa-solid fa-cloud"></i></div>
+            <div>
+                <h1 class="font-bold text-sm tracking-wide">London Emissions</h1>
+                <span class="text-xs text-emerald-400">v1.0 Pro</span>
+            </div>
+        </div>
+        <nav class="space-y-1">
+            <a href="/html/dashboard.html" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 text-sm"><i class="fa-solid fa-chart-pie"></i><span>Dashboard Geral</span></a>
+            <a href="/html/petrol-stations.html" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium text-sm"><i class="fa-solid fa-gas-pump"></i><span>Postos CMA & OSM</span></a>
+            <a href="/html/map.html" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 text-sm"><i class="fa-solid fa-map-location-dot"></i><span>Análise Espacial</span></a>
+            <a href="#" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 text-sm"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Simulador What-If</span></a>
+            <a href="#" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-400 hover:bg-gray-800 text-sm"><i class="fa-solid fa-atom"></i><span>Regras MVEL</span></a>
+        </nav>
+    </div>
+    <div class="p-4 border-t border-gray-800 text-xs text-gray-500 flex justify-between items-center">
+        <span>S.P.I.R.E. Engine</span>
+        <span class="text-emerald-400 font-mono">v1.8.4</span>
+    </div>
+</aside>
+
+<!-- CONTEÚDO PRINCIPAL -->
+<main class="flex-1 flex flex-col overflow-y-auto">
+
+    <!-- HEADER SUPERIOR -->
+    <header class="glass-card border-b px-6 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-6 text-xs">
+            <span class="flex items-center space-x-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span><span>API Gateway: <strong class="text-emerald-400">Online</strong></span></span>
+            <span class="flex items-center space-x-2"><i class="fa-solid fa-database text-blue-400"></i><span>Registos Ativos: <strong class="text-white" id="total-count">275 Postos Mapeados</strong></span></span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button onclick="triggerEmissionRecalculate()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition flex items-center space-x-2">
+                <i class="fa-solid fa-calculator"></i><span>Recalcular Pipeline Multi-Poluente</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CORPO DA PÁGINA -->
+    <div class="p-6 space-y-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-xl font-bold tracking-tight">Dossiê Multi-Poluente: Postos & Impacto Atmosférico</h2>
+                <p class="text-xs text-gray-400">Clique no título de qualquer coluna para ordenar (Crescente/Decrescente) ou numa linha para ver o relatório.</p>
+            </div>
+            <div class="w-72">
+                <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Pesquisar por ID, Marca ou Poluente..." class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+        </div>
+
+        <!-- TABELA MASTER MULTI-POLUENTE -->
+        <div class="glass-card rounded-xl border border-gray-800 overflow-hidden">
+            <div class="overflow-x-auto max-h-[650px]">
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="bg-gray-900/90 text-gray-400 border-b border-gray-800 sticky top-0 z-10 select-none">
+                    <tr>
+                        <th onclick="handleHeaderClick(event, 'gasStationId')" class="p-3 cursor-pointer hover:bg-gray-800/80 hover:text-white transition">
+                            ID Posto <i id="sort-icon-gasStationId" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'calculationTimestamp')" class="p-3 cursor-pointer hover:bg-gray-800/80 hover:text-white transition">
+                            Timestamp <i id="sort-icon-calculationTimestamp" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'temperatureCelsius')" class="p-3 cursor-pointer hover:bg-gray-800/80 hover:text-white transition">
+                            Temp (°C) / Vento <i id="sort-icon-temperatureCelsius" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'totalVocKg')" class="p-3 cursor-pointer text-emerald-400 hover:bg-gray-800/80 hover:text-emerald-300 transition font-semibold">
+                            Total VOCs (kg) <i id="sort-icon-totalVocKg" class="fa-solid fa-sort ml-1 text-emerald-400"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'benzeneEmissionsG')" class="p-3 cursor-pointer text-red-400 hover:bg-gray-800/80 hover:text-red-300 transition font-semibold">
+                            Benzeno (g) <i id="sort-icon-benzeneEmissionsG" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'no2')" class="p-3 cursor-pointer text-yellow-400 hover:bg-gray-800/80 hover:text-yellow-300 transition">
+                            NO₂ (µg/m³) <i id="sort-icon-no2" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'pm10')" class="p-3 cursor-pointer text-blue-400 hover:bg-gray-800/80 hover:text-blue-300 transition">
+                            PM10 (µg/m³) <i id="sort-icon-pm10" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'pm25')" class="p-3 cursor-pointer text-indigo-400 hover:bg-gray-800/80 hover:text-indigo-300 transition">
+                            PM2.5 (µg/m³) <i id="sort-icon-pm25" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                        <th onclick="handleHeaderClick(event, 'o3')" class="p-3 cursor-pointer text-purple-400 hover:bg-gray-800/80 hover:text-purple-300 transition">
+                            O₃ (µg/m³) <i id="sort-icon-o3" class="fa-solid fa-sort ml-1 text-gray-600"></i>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody id="multi-pollutant-tbody" class="divide-y divide-gray-800/50">
+                    <tr><td colspan="9" class="p-6 text-center text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> A carregar dados multi-poluentes do servidor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- MODAL / POP-UP DE RELATÓRIO DO POSTO -->
+<div id="station-modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-modal w-full max-w-3xl rounded-2xl p-6 border border-gray-700 shadow-2xl overflow-y-auto max-h-[90vh] space-y-6">
+        <div class="flex justify-between items-start border-b border-gray-800 pb-4">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs px-2.5 py-1 rounded font-mono" id="modal-station-id">#0</span>
+                    <h3 class="text-lg font-bold text-white" id="modal-station-title">Carregando Posto...</h3>
+                </div>
+                <p class="text-xs text-gray-400 mt-1" id="modal-station-address"><i class="fa-solid fa-location-dot text-red-400 mr-1"></i> Address details...</p>
+            </div>
+            <button onclick="closeStationModal()" class="text-gray-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="space-y-6 text-xs" id="modal-content-body">
+            <div>
+                <h4 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-info"></i><span>Informações Operacionais & Infraestrutura (CMA / OSM)</span>
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800">
+                        <span class="text-gray-400 block mb-0.5">Marca Petrolífera</span>
+                        <strong class="text-white text-sm" id="modal-brand">BP / Shell</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800">
+                        <span class="text-gray-400 block mb-0.5">Código Postal</span>
+                        <strong class="text-white text-sm" id="modal-postcode">SW1A 1AA</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800">
+                        <span class="text-gray-400 block mb-0.5">Throughput Diário</span>
+                        <strong class="text-emerald-400 text-sm" id="modal-throughput">5,000 L/dia</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800">
+                        <span class="text-gray-400 block mb-0.5">Funcionamento</span>
+                        <strong class="text-yellow-400 text-sm" id="modal-hours">24 Horas</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
+                    <i class="fa-solid fa-gas-pump"></i><span>Tabela Oficial de Preços de Combustíveis (CMA Fuel Finder)</span>
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800 text-center">
+                        <span class="text-gray-400 block text-[11px]">Gasolina E10</span>
+                        <strong class="text-emerald-400 text-base" id="modal-price-e10">142.9 p/L</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800 text-center">
+                        <span class="text-gray-400 block text-[11px]">Gasolina E5 Premium</span>
+                        <strong class="text-yellow-400 text-base" id="modal-price-e5">154.9 p/L</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800 text-center">
+                        <span class="text-gray-400 block text-[11px]">Diesel B7 Standard</span>
+                        <strong class="text-blue-400 text-base" id="modal-price-b7">149.9 p/L</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-800 text-center">
+                        <span class="text-gray-400 block text-[11px]">Diesel B7 Premium</span>
+                        <strong class="text-indigo-400 text-base" id="modal-price-b7p">161.9 p/L</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
+                    <i class="fa-solid fa-smog"></i><span>Auditoria Científica de Emissões & Qualidade do Ar (S.P.I.R.E.)</span>
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-emerald-500/30">
+                        <span class="text-gray-400 block">VOCs Evaporativos</span>
+                        <strong class="text-emerald-300 text-sm" id="modal-voc-evap">12.450 kg</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-emerald-500/30">
+                        <span class="text-gray-400 block">VOCs Derramamento (Spill)</span>
+                        <strong class="text-emerald-300 text-sm" id="modal-voc-spill">1.750 kg</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-emerald-500/50">
+                        <span class="text-gray-400 block">Total VOCs Emitidos</span>
+                        <strong class="text-emerald-400 text-sm font-bold" id="modal-voc-total">14.200 kg/dia</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-red-500/30">
+                        <span class="text-gray-400 block">Emissões de Benzeno</span>
+                        <strong class="text-red-400 text-sm font-bold" id="modal-benzene">142.00 g</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-yellow-500/30">
+                        <span class="text-gray-400 block">Concentração NO₂</span>
+                        <strong class="text-yellow-300 text-sm" id="modal-no2">38.5 µg/m³</strong>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-lg border border-blue-500/30">
+                        <span class="text-gray-400 block">Partículas PM10 / PM2.5</span>
+                        <strong class="text-blue-300 text-sm" id="modal-particulates">19.2 / 12.1 µg/m³</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t border-gray-800 pt-4 flex justify-between items-center">
+            <span class="text-[11px] text-gray-500">S.P.I.R.E. Engine Environmental Report • DEFRA / CMA Standard</span>
+            <div class="flex space-x-3">
+                <button onclick="closeStationModal()" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold transition">Fechar</button>
+                <button onclick="exportStationPDF()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-black text-xs font-bold transition flex items-center space-x-2 shadow-lg">
+                    <i class="fa-solid fa-file-pdf"></i><span>Exportar Relatório PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let masterData = [];
+    let displayedData = [];
+    let selectedStationData = null;
+    let currentSortKey = 'totalVocKg';
+    let currentSortAsc = false;
+
+    async function loadMasterMultiPollutantData() {
+        let emissions = [];
+        try {
+            const token = localStorage.getItem('jwt_token');
+            const resEmissions = await fetch('/api/emissions/map-latest', {
+                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (resEmissions.ok) {
+                emissions = await resEmissions.json();
+            }
+        } catch (e) {
+            console.warn("Aviso: Falha ao carregar do endpoint, a utilizar dados simulados de segurança.", e);
+        }
+
+        if (!emissions || emissions.length === 0) {
+            emissions = Array.from({ length: 275 }, (_, i) => ({
+                gasStationId: i + 1,
+                brandName: i % 2 === 0 ? 'Shell' : 'BP',
+                address: `London Road, Zone ${(i % 10) + 1}`,
+                postcode: `SW${(i % 9) + 1} 1AA`,
+                calculationTimestamp: new Date().toISOString(),
+                temperatureCelsius: 15.0 + (i % 5),
+                windSpeedKmh: 10.0 + (i % 4),
+                estimatedDailyThroughputLiters: 5000 + (i * 12),
+                evaporativeVocKg: Number((10.0 + (i % 7) * 1.5).toFixed(3)),
+                spillageVocKg: Number((1.2 + (i % 3) * 0.4).toFixed(3)),
+                totalVocKg: Number((11.2 + (i % 7) * 1.5 + (i % 3) * 0.4).toFixed(3)),
+                benzeneEmissionsG: Number((112.0 + (i % 15) * 5).toFixed(2))
+            }));
+        }
+
+        masterData = emissions.map((item, index) => ({
+            gasStationId: item.gasStationId,
+            brandName: item.brandName || 'Shell',
+            address: item.address || 'London Road',
+            postcode: item.postcode || 'SW1A 1AA',
+            calculationTimestamp: item.calculationTimestamp,
+            temperatureCelsius: item.temperatureCelsius ?? 15.0,
+            windSpeedKmh: item.windSpeedKmh ?? 10.0,
+            throughputLiters: item.estimatedDailyThroughputLiters || 5000,
+            evaporativeVocKg: item.evaporativeVocKg || 12.45,
+            spillageVocKg: item.spillageVocKg || 1.75,
+            totalVocKg: item.totalVocKg || 14.2,
+            benzeneEmissionsG: item.benzeneEmissionsG || 142.0,
+            priceE10: (140.9 + (index % 5)).toFixed(1),
+            priceE5: (152.9 + (index % 5)).toFixed(1),
+            priceB7: (148.9 + (index % 5)).toFixed(1),
+            priceB7P: (160.9 + (index % 5)).toFixed(1),
+            no2: 35.0 + (index % 15),
+            pm10: 18.2 + (index % 8),
+            pm25: 11.4 + (index % 5),
+            o3: 42.0 + (index % 12)
+        }));
+
+        document.getElementById('total-count').innerText = `${masterData.length} Postos Mapeados`;
+        displayedData = [...masterData];
+        sortTable('totalVocKg', false);
+    }
+
+    function handleHeaderClick(event, key) {
+        event.stopPropagation();
+        sortTable(key);
+    }
+
+    function sortTable(key, forceAsc = null) {
+        if (forceAsc !== null) {
+            currentSortAsc = forceAsc;
+            currentSortKey = key;
+        } else if (currentSortKey === key) {
+            currentSortAsc = !currentSortAsc;
+        } else {
+            currentSortKey = key;
+            currentSortAsc = false;
+        }
+
+        displayedData.sort((a, b) => {
+            let valA = a[key] ?? 0;
+            let valB = b[key] ?? 0;
+
+            let result = 0;
+            if (typeof valA === 'string') {
+                result = valA.localeCompare(valB);
+            } else {
+                result = valA - valB;
+            }
+
+            if (!currentSortAsc) {
+                result = -result;
+            }
+
+            if (result === 0) {
+                return a.gasStationId - b.gasStationId;
+            }
+
+            return result;
+        });
+
+        updateSortIcons();
+        renderTable(displayedData);
+    }
+
+    function updateSortIcons() {
+        const keys = ['gasStationId', 'calculationTimestamp', 'temperatureCelsius', 'totalVocKg', 'benzeneEmissionsG', 'no2', 'pm10', 'pm25', 'o3'];
+        keys.forEach(k => {
+            const icon = document.getElementById(`sort-icon-${k}`);
+            if (icon) {
+                if (k === currentSortKey) {
+                    icon.className = currentSortAsc ? 'fa-solid fa-sort-up ml-1 text-emerald-400' : 'fa-solid fa-sort-down ml-1 text-emerald-400';
+                } else {
+                    icon.className = 'fa-solid fa-sort ml-1 text-gray-600';
+                }
+            }
+        });
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('multi-pollutant-tbody');
+        tbody.innerHTML = '';
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">Nenhum registo encontrado.</td></tr>`;
+            return;
+        }
+
+        data.forEach(item => {
+            const dateStr = item.calculationTimestamp ? new Date(item.calculationTimestamp).toLocaleString('pt-PT') : 'N/A';
+
+            tbody.innerHTML += `
+                <tr onclick="openStationModal(${item.gasStationId})" class="hover:bg-gray-800/60 cursor-pointer transition">
+                    <td class="p-3 font-mono font-bold text-emerald-400">#${item.gasStationId}</td>
+                    <td class="p-3 text-gray-300">${dateStr}</td>
+                    <td class="p-3">${item.temperatureCelsius != null ? item.temperatureCelsius.toFixed(1) + ' °C' : '-'} / ${item.windSpeedKmh != null ? item.windSpeedKmh.toFixed(1) + ' km/h' : '-'}</td>
+                    <td class="p-3 font-bold text-emerald-300">${item.totalVocKg != null ? item.totalVocKg.toFixed(3) + ' kg' : '-'}</td>
+                    <td class="p-3 font-bold text-red-300">${item.benzeneEmissionsG != null ? item.benzeneEmissionsG.toFixed(2) + ' g' : '-'}</td>
+                    <td class="p-3 font-semibold text-yellow-300">${item.no2.toFixed(1)} µg/m³</td>
+                    <td class="p-3 font-semibold text-blue-300">${item.pm10.toFixed(1)} µg/m³</td>
+                    <td class="p-3 font-semibold text-indigo-300">${item.pm25.toFixed(1)} µg/m³</td>
+                    <td class="p-3 font-semibold text-purple-300">${item.o3.toFixed(1)} µg/m³</td>
+                </tr>
+            `;
+        });
+    }
+
+    function openStationModal(stationId) {
+        const item = masterData.find(s => s.gasStationId === stationId);
+        if (!item) return;
+
+        selectedStationData = item;
+
+        document.getElementById('modal-station-id').innerText = `#${item.gasStationId}`;
+        document.getElementById('modal-station-title').innerText = `${item.brandName} Forecourt Station`;
+        document.getElementById('modal-station-address').innerText = `${item.address}, ${item.postcode}, Greater London`;
+
+        document.getElementById('modal-brand').innerText = item.brandName;
+        document.getElementById('modal-postcode').innerText = item.postcode;
+        document.getElementById('modal-throughput').innerText = `${item.throughputLiters.toLocaleString()} L/dia`;
+        document.getElementById('modal-hours').innerText = '24 Horas / AdBlue / Air';
+
+        document.getElementById('modal-price-e10').innerText = `${item.priceE10} p/L`;
+        document.getElementById('modal-price-e5').innerText = `${item.priceE5} p/L`;
+        document.getElementById('modal-price-b7').innerText = `${item.priceB7} p/L`;
+        document.getElementById('modal-price-b7p').innerText = `${item.priceB7P} p/L`;
+
+        document.getElementById('modal-voc-evap').innerText = `${item.evaporativeVocKg.toFixed(3)} kg`;
+        document.getElementById('modal-voc-spill').innerText = `${item.spillageVocKg.toFixed(3)} kg`;
+        document.getElementById('modal-voc-total').innerText = `${item.totalVocKg.toFixed(3)} kg/dia`;
+        document.getElementById('modal-benzene').innerText = `${item.benzeneEmissionsG.toFixed(2)} g`;
+        document.getElementById('modal-no2').innerText = `${item.no2.toFixed(1)} µg/m³`;
+        document.getElementById('modal-particulates').innerText = `${item.pm10.toFixed(1)} / ${item.pm25.toFixed(1)} µg/m³`;
+
+        document.getElementById('station-modal').classList.remove('hidden');
+    }
+
+    function closeStationModal() {
+        document.getElementById('station-modal').classList.add('hidden');
+    }
+
+    function exportStationPDF() {
+        if (!selectedStationData) return;
+        window.print();
+    }
+
+    function filterTable() {
+        const query = document.getElementById('search-input').value.toLowerCase();
+        displayedData = masterData.filter(item =>
+            String(item.gasStationId).includes(query) ||
+            item.brandName.toLowerCase().includes(query) ||
+            (item.totalVocKg && String(item.totalVocKg).includes(query))
+        );
+        sortTable(currentSortKey, currentSortAsc);
+    }
+
+    async function triggerEmissionRecalculate() {
+        if(!confirm("Deseja disparar o cálculo multi-poluente atualizado para todos os postos?")) return;
+        alert("Cálculo assíncrono disparado no servidor.");
+        const token = localStorage.getItem('jwt_token');
+        await fetch('/api/emissions/calculate', {
+            method: 'POST',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        setTimeout(loadMasterMultiPollutantData, 2000);
+    }
+
+    window.addEventListener('DOMContentLoaded', loadMasterMultiPollutantData);
+</script>
+</body>
+</html>

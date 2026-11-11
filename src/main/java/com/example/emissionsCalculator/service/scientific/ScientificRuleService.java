@@ -1,10 +1,15 @@
 package com.example.emissionsCalculator.service.scientific;
 
+import com.example.emissionsCalculator.entity.user.User;
 import com.example.emissionsCalculator.dto.scientific.ScientificRuleResponseDTO;
 import com.example.emissionsCalculator.entity.scientific.generalPollution.ScientificRule;
+import com.example.emissionsCalculator.entity.user.User;
 import com.example.emissionsCalculator.repository.scientific.generalPollution.ScientificRuleRepository;
+import com.example.emissionsCalculator.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,11 +25,17 @@ import java.util.List;
 public class ScientificRuleService {
 
     private final ScientificRuleRepository ruleRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public int processCsvAndPdfUpload(MultipartFile csvFile, MultipartFile pdfFile) {
         // 1. Validação prévia de segurança dos tipos de ficheiro
         validateFilesSecurity(csvFile, pdfFile);
+
+        // Identificar o utilizador autenticado atual para associar a autoria
+        String currentUsername = getCurrentUsername();
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new RuntimeException("Utilizador autenticado não encontrado na base de dados."));
 
         int count = 0;
         try {
@@ -63,11 +74,14 @@ public class ScientificRuleService {
                         rule.setPdfFileName(pdfName);
                     }
 
+                    // Associa o utilizador criador do registo
+                    rule.setCreatedBy(currentUser);
+
                     ruleRepository.save(rule);
                     count++;
                 }
             }
-            log.info("✅ Sucesso: {} regras científicas validadas e importadas com segurança!", count);
+            log.info("✅ Sucesso: {} regras científicas validadas e importadas com segurança por '{}'!", count, currentUsername);
             return count;
 
         } catch (SecurityException se) {
@@ -77,6 +91,40 @@ public class ScientificRuleService {
             log.error("❌ Erro ao processar ficheiros científicos: {}", e.getMessage(), e);
             throw new RuntimeException("Falha na importação de regras: " + e.getMessage());
         }
+    }
+
+    @Transactional
+    public void deleteRule(Long id) {
+        ScientificRule rule = ruleRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Regra científica não encontrada com ID: " + id));
+
+        String currentUsername = getCurrentUsername();
+        boolean isAdmin = isAdminUser();
+
+        // Regra de Ouro de Propriedade: ADMIN pode apagar qualquer registo. USER só pode apagar o que ele próprio criou.
+        if (!isAdmin) {
+            if (rule.getCreatedBy() == null || !rule.getCreatedBy().getUsername().equals(currentUsername)) {
+                throw new SecurityException("Acesso negado: Só tem permissão para eliminar regras ou artigos criados por si.");
+            }
+        }
+
+        ruleRepository.delete(rule);
+        log.info("🗑️ Regra científica ID {} eliminada com sucesso por '{}' (Admin: {})", id, currentUsername, isAdmin);
+    }
+
+    private String getCurrentUsername() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new RuntimeException("Nenhum utilizador autenticado encontrado na sessão.");
+        }
+        return authentication.getName();
+    }
+
+    private boolean isAdminUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
     private void validateFilesSecurity(MultipartFile csvFile, MultipartFile pdfFile) {

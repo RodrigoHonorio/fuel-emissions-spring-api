@@ -1,5 +1,6 @@
 package com.example.emissionsCalculator.entity.scientific.generalPollution;
 
+import com.example.emissionsCalculator.entity.user.User; // <-- Importante
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -29,7 +30,6 @@ public class ScientificRule {
     @Column(name = "article_name", nullable = false, length = 255)
     private String articleName;
 
-    // Correção para o PostgreSQL BYTEA no Hibernate 6+
     @JdbcTypeCode(SqlTypes.VARBINARY)
     @Column(name = "pdf_content", columnDefinition = "BYTEA")
     private byte[] pdfContent;
@@ -51,6 +51,12 @@ public class ScientificRule {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    // --- ADICIONE ESTE CAMPO ABAIXO ---
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User createdBy;
+    // ----------------------------------
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

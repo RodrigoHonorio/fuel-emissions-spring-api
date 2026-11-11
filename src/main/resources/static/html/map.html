@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise Espacial - London Emissions</title>
+
+    <!-- GUARDIÃO DE SESSÃO -->
+    <script>
+        if (!localStorage.getItem('jwt_token')) {
+            window.location.replace('/index.html');
+        }
+    </script>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- CSS Específico do Mapa -->
+    <link rel="stylesheet" href="/css/map.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 font-sans antialiased overflow-hidden flex flex-col">
+
+<!-- TOP BAR -->
+<header class="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 z-20 shrink-0">
+    <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center shadow-lg">
+                <i class="fa-solid fa-smog text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                    London Emissions & Air Quality
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">GIS Pro</span>
+                </h1>
+                <p class="text-xs text-slate-400">Análise Espacial de Emissões</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex items-center space-x-3">
+        <button onclick="logout()" title="Terminar Sessão" class="flex items-center space-x-2 bg-rose-600/25 hover:bg-rose-600 text-rose-300 hover:text-white px-3.5 py-2 rounded-lg text-xs font-medium border border-rose-500/30 transition">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Sair</span>
+        </button>
+    </div>
+</header>
+
+<!-- APP CONTAINER -->
+<div class="flex-1 flex overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-72 bg-slate-800/90 border-r border-slate-700 flex flex-col justify-between z-10 shrink-0">
+        <div class="p-4 space-y-6 overflow-y-auto flex-1">
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-2">Módulos Principais</p>
+                <nav class="space-y-1">
+                    <a href="/html/dashboard.html" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                        <span>Dashboard Geral</span>
+                    </a>
+                    <a href="/html/petrol-stations.html" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-300 hover:bg-slate-700/60 hover:text-white">
+                        <i class="fa-solid fa-gas-pump w-5 text-center"></i>
+                        <span>Postos CMA & OSM</span>
+                    </a>
+                    <a href="/html/map.html" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition bg-brand-600 text-white shadow-lg shadow-brand-600/20">
+                        <i class="fa-solid fa-map-location-dot w-5 text-center"></i>
+                        <span>Análise Espacial</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN MAP WORKSPACE -->
+    <main class="flex-1 bg-slate-950 p-6 overflow-y-auto flex flex-col">
+        <div id="map-fullscreen-wrapper" class="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col relative flex-1 min-h-[500px]">
+            <div class="flex items-center justify-between mb-3 shrink-0">
+                <h3 class="text-base font-bold text-white">Mapa Cartográfico de Londres (Boroughs, Postos e Estações)</h3>
+                <span class="text-xs text-slate-400">Leaflet Engine</span>
+            </div>
+
+            <!-- Elemento do Mapa -->
+            <div id="map" class="w-full flex-1 rounded-xl z-0 relative min-h-[450px]"></div>
+
+            <!-- PAINEL DE CONTROLOS FLUTUANTE -->
+            <div class="absolute bottom-8 right-8 z-[1000] bg-slate-900/95 border border-slate-700/80 backdrop-blur-md p-4 rounded-2xl shadow-2xl flex flex-col space-y-3 w-72 text-xs text-slate-200">
+                <div class="font-bold border-b border-slate-700 pb-2 flex items-center justify-between">
+                    <span class="text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-layer-group"></i> GIS Control</span>
+                    <button onclick="toggleFullscreen()" class="text-slate-400 hover:text-white transition" title="Fullscreen">
+                        <i class="fa-solid fa-expand text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Seletor de Tipos de Mapa -->
+                <div>
+                    <label class="block font-semibold text-slate-400 mb-1">Estilo do Mapa</label>
+                    <select id="mapStyleSelect" onchange="changeMapStyle(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <option value="streets">OpenStreetMap Standard</option>
+                        <option value="dark">CartoDB Dark Matter</option>
+                        <option value="satellite">ESRI Satellite</option>
+                    </select>
+                </div>
+
+                <!-- Alternância de Camadas -->
+                <div class="space-y-1.5 border-t border-slate-700 pt-2">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="toggleHeatmap" checked onchange="toggleLayer('heatmap')" class="rounded border-slate-700 text-emerald-600 focus:ring-0">
+                        <span>Heatmap de Poluição (VOC)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="toggleHotspots" checked onchange="toggleLayer('hotspots')" class="rounded border-slate-700 text-rose-600 focus:ring-0">
+                        <span>Pontos Críticos (Hotspots)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="toggleFuel" checked onchange="toggleLayer('fuel')" class="rounded border-slate-700 text-amber-600 focus:ring-0">
+                        <span>Postos de Combustível (Severidade)</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="toggleAir" checked onchange="toggleLayer('air')" class="rounded border-slate-700 text-sky-600 focus:ring-0">
+                        <span>Estações de Qualidade do Ar</span>
+                    </label>
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" id="toggleBoroughs" checked onchange="toggleLayer('boroughs')" class="rounded border-slate-700 text-emerald-600 focus:ring-0">
+                        <span>Mostrar Distritos (Boroughs)</span>
+                    </label>
+                </div>
+
+                <!-- Rosa dos Ventos -->
+                <div class="border-t border-slate-700 pt-2 flex items-center justify-between">
+                    <span class="font-semibold text-slate-400">Rosa dos Ventos:</span>
+                    <div class="flex items-center space-x-1.5 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700">
+                        <i class="fa-solid fa-compass text-emerald-400 animate-spin-slow"></i>
+                        <span class="font-bold text-amber-400">NW (14 km/h)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Leaflet JS Principal -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Leaflet Heatmap Plugin (Carregado obrigatoriamente DEPOIS do Leaflet) -->
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+<!-- JS Específico do Mapa -->
+<script src="/js/map.js"></script>
+</body>
+</html>
